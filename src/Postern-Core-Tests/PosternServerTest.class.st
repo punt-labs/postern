@@ -1,5 +1,5 @@
 "
-Tests for PosternServer and PosternDelegate. Verifies server startup and LF-to-CR normalization in the eval delegate.
+Tests for PosternServer and PosternDelegate. Verifies server startup, LF-to-CR normalization in the eval delegate, and binding address policy.
 "
 Class {
 	#name : 'PosternServerTest',
@@ -207,6 +207,15 @@ PosternServerTest >> testRequestCountIncrements [
 ]
 
 { #category : 'tests' }
+PosternServerTest >> testStartOnBindsToLoopback [
+	"startOn: must bind to loopback only."
+	| server |
+	server := PosternServer startOn: 8500.
+	[ self assert: server bindingAddress equals: NetNameResolver loopBackAddress ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
 PosternServerTest >> testStartOnCreatesRunningServer [
 	| server |
 	server := PosternServer startOn: 8499.
@@ -219,6 +228,36 @@ PosternServerTest >> testStartOnUsesPosternDelegate [
 	| server |
 	server := PosternServer startOn: 8499.
 	[ self assert: (server delegate isKindOf: PosternDelegate) ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
+PosternServerTest >> testStartOnWithAuthBindsToLoopback [
+	"startOn:withAuth: must bind to loopback only."
+	| server |
+	server := PosternServer startOn: 8500 withAuth: true.
+	[ self assert: server bindingAddress equals: NetNameResolver loopBackAddress ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
+PosternServerTest >> testStartPublicOnAlwaysEnablesAuth [
+	"startPublicOn: must always enable authentication."
+	| server delegate |
+	server := PosternServer startPublicOn: 8500.
+	delegate := server delegate.
+	[ self assert: delegate authEnabled.
+	self assert: delegate token isNotNil.
+	self assert: delegate token isNotEmpty ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
+PosternServerTest >> testStartPublicOnBindsToAllInterfaces [
+	"startPublicOn: must not restrict to loopback."
+	| server |
+	server := PosternServer startPublicOn: 8500.
+	[ self assert: server bindingAddress ~= NetNameResolver loopBackAddress ]
 		ensure: [ server stop ]
 ]
 
