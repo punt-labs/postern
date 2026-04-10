@@ -182,9 +182,17 @@ Metacello new
 | `/help` | `GET` | Table of contents for the nine help sections. No auth required. |
 | `/help/{section}` | `GET` | `api`, `pharo`, `dispatch`, `lint`, `git`, `testing`, `safety`, `makefile`, or `lessons`. |
 
-**Authentication:** optional. When enabled, `/repl` requires an `X-Eval-Token` header.
-Start with `PosternServer startOn: 8422 withAuth: true`; the token is written to
-`.tmp/eval-token`. `/health` and `/help` are always unauthenticated.
+**Binding and authentication:**
+
+| Method | Binding | Auth |
+|--------|---------|------|
+| `PosternServer startOn: 8422` | loopback | none |
+| `PosternServer startOn: 8422 withAuth: true` | loopback | required |
+| `PosternServer startPublicOn: 8422` | all interfaces | required |
+
+There is no unauthenticated public mode. When auth is enabled, `/repl` requires an
+`X-Eval-Token` header; the token is written to `.tmp/eval-token`. `/health` and
+`/help` are always unauthenticated.
 
 **Line endings:** send LF. The server converts to CR before passing to the Pharo
 compiler. `/help` responses use LF.
