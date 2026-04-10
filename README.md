@@ -2,6 +2,7 @@
 
 > Remote image driver for Pharo — HTTP eval server, self-documenting `/help` endpoint, Iceberg sync.
 
+[![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 [![License](https://img.shields.io/github/license/punt-labs/postern)](LICENSE)
 
 Postern starts an HTTP server on `localhost:8422` inside a running Pharo 12 image.
