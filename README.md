@@ -1,6 +1,6 @@
 # Postern
 
-> Drive a live Pharo image from Claude Code or any HTTP client — full development cycle, no GUI required.
+> Drive a live Pharo image from any coding agent or HTTP client — full development cycle, no GUI required.
 
 [![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 [![License](https://img.shields.io/github/license/punt-labs/postern)](LICENSE)
@@ -50,12 +50,13 @@ leaving the session.
 
 Postern's role is to make that image accessible to tools that speak HTTP.
 
-## Claude Code + Pharo
+## Coding Agents + Pharo
 
-The primary use case is pairing Claude Code with a live Pharo image. Claude Code
-sends Smalltalk to `/repl` and reads `/help` to learn the image's API, conventions,
-and safety rules. From there it drives the full TDD cycle — define, compile, test,
-commit — without leaving its session.
+Any coding agent that can make HTTP requests and follow instructions can drive the
+full TDD cycle. The agent sends Smalltalk to `/repl` and reads `/help` to learn the
+image's API, conventions, and safety rules. From there it drives define → compile →
+test → commit without leaving its session. Claude Code, Codex, Cursor, and any
+other agent that speaks HTTP all work the same way.
 
 The `/help` endpoint is the interface contract between an external agent and the
 image. A session that has never seen the image before reads `/help` first and uses
