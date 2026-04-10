@@ -1,0 +1,7 @@
+pharo/
+.pharo.pid
+.pharo.log
+PharoDebug.log
+.tmp/
+*.image
+*.changes
