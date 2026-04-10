@@ -1,16 +1,18 @@
 # Postern
 
-> Remote image driver for Pharo — HTTP eval server, self-documenting `/help` endpoint, Iceberg sync.
+> Drive a live Pharo image from Claude Code or any HTTP client — full development cycle, no GUI required.
 
 [![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 [![License](https://img.shields.io/github/license/punt-labs/postern)](LICENSE)
 
-Postern starts an HTTP server on `localhost:8422` inside a running Pharo 12 image.
-Any outside tool — a shell script, a CI job, a language model session — can evaluate
-Smalltalk expressions, introspect the image, and commit via Iceberg without touching
-the Pharo GUI.
+Pharo is a live programming environment. Compiling a method installs it into the
+running image immediately — no restart, no recompile step. Postern exposes that
+capability over HTTP: a running eval server on `localhost:8422` accepts Smalltalk
+expressions, executes them in the live image, and returns the result. Any outside
+tool — Claude Code, a CI job, a shell script — can drive the full development
+cycle without touching the Pharo GUI.
 
-Zero Claude SDK dependency. Postern works with any tool that can make HTTP requests.
+Zero Claude SDK dependency.
 
 **Platforms:** macOS, Linux (Pharo 12)
 
@@ -28,16 +30,36 @@ curl -s http://localhost:8422/health    # → ok
 curl -s http://localhost:8422/help     # → self-documenting table of contents
 ```
 
+## The live image model
+
+Most language environments store code as files. An agent editing Python, Go, or
+TypeScript writes to files, a compiler processes them, and the runtime loads the
+result — typically requiring a process restart before new code can execute.
+
+Pharo stores code in a live object graph called an image. Compiling a method
+installs it into that graph immediately. The same session can define a class,
+call a method on it, run its tests, and inspect the live objects it creates —
+all without a restart. Each of those steps happens in the running process.
+
+For agent-driven coding this tightens the loop at every increment. After sending
+a compile request, the agent can call the new method in the next request, observe
+the real runtime result, and branch on it — not on a static type check or a test
+run that spawned a subprocess. When the increment is complete, Iceberg (Pharo's
+git integration) runs inside the same image, so the agent can commit without
+leaving the session.
+
+Postern's role is to make that image accessible to tools that speak HTTP.
+
 ## Claude Code + Pharo
 
 The primary use case is pairing Claude Code with a live Pharo image. Claude Code
-sends Smalltalk to the `/repl` endpoint and reads `/help` to learn the image's API,
-conventions, and safety rules. From there it can define classes, compile methods,
-run tests, and commit via Iceberg — the full TDD cycle — without leaving its session.
+sends Smalltalk to `/repl` and reads `/help` to learn the image's API, conventions,
+and safety rules. From there it drives the full TDD cycle — define, compile, test,
+commit — without leaving its session.
 
-The key enabler is the `/help` endpoint. It is the interface contract between an
-external agent and the image. A session that has never seen the image before reads
-`/help` first and uses those nine sections to navigate correctly:
+The `/help` endpoint is the interface contract between an external agent and the
+image. A session that has never seen the image before reads `/help` first and uses
+those nine sections to navigate correctly:
 
 | Section | What it documents |
 |---------|-------------------|
@@ -51,15 +73,14 @@ external agent and the image. A session that has never seen the image before rea
 | `/help/makefile` | Image lifecycle: setup, start, stop, rebuild |
 | `/help/lessons` | Incident record: cascades, process failures, scope safety |
 
-This is different from a documentation site. The content is served from the live image
-at runtime, so it reflects the actual loaded packages and the conventions the image
-was built with.
+The content is served from the live image at runtime, so it reflects the actual
+loaded packages and the conventions that image was built with — not a static
+documentation site.
 
 ## System in Action
 
 A complete feature cycle — define a class, compile a method, run tests, commit —
-using nothing but HTTP to the eval server. This is the loop Claude Code runs for
-every increment of Pharo work.
+using nothing but HTTP to the eval server.
 
 ```bash
 # Agent reads the image's API and conventions before writing anything
@@ -78,7 +99,7 @@ curl -s -X POST http://localhost:8422/repl \
 ```
 
 ```bash
-# Compile a method
+# Compile a method — takes effect in the running image immediately
 curl -s -X POST http://localhost:8422/repl \
   -H "Content-Type: text/plain" \
   -d "Counter compile: 'increment
@@ -87,7 +108,7 @@ curl -s -X POST http://localhost:8422/repl \
 ```
 
 ```bash
-# Run the tests
+# Run the tests — these exercise the live compiled method
 curl -s -X POST http://localhost:8422/repl \
   -H "Content-Type: text/plain" \
   -d "CounterTest buildSuite run"
@@ -101,7 +122,7 @@ make lint 2>&1 | grep -v ': clean$' | grep -v '^$'
 ```
 
 ```bash
-# Commit via Iceberg
+# Commit via Iceberg — from inside the running image
 curl -s -X POST http://localhost:8422/repl \
   -H "Content-Type: text/plain" \
   -d "| repo |
@@ -117,12 +138,11 @@ hierarchies, query running servers, and call methods at any point in the cycle.
 ## Production Use
 
 [`punt-labs/claude-agent-sdk-smalltalk`](https://github.com/punt-labs/claude-agent-sdk-smalltalk)
-was developed using this workflow. That project is a five-product SDK for building
-Claude agents in Pharo: an API client for the Claude Messages API, an in-image tool
-runner, a Morphic GUI, and two integration layers. It currently has 199 classes,
-2,358 methods, and 765 passing tests across approximately 32,000 lines of Smalltalk.
-Every class in that codebase was defined, compiled, tested, and committed through
-Postern.
+was developed using this workflow. That project ships five products for building
+Claude agents in Pharo: an API client for the Claude Messages API, an in-image
+agent tool runner, a Morphic GUI, and two integration layers. It currently has
+199 classes, 2,358 methods, and 765 passing tests across approximately 32,000
+lines of Smalltalk — all written, tested, and committed through Postern.
 
 ## Packages
 
@@ -177,15 +197,14 @@ PosternDashboard open.
 ```
 
 Shows live traffic per server: method, path, status code, duration, body snippet.
-The filter field takes keyboard focus on open — start typing to filter immediately.
-Multiple windows can monitor different servers simultaneously.
+The filter field takes keyboard focus on open. Multiple windows can monitor
+different servers simultaneously.
 
 ### Iceberg sync
 
-After CLI git operations (commit, merge, pull), Iceberg's working copy reference
-commit can drift from filesystem HEAD, showing a false "dirty" state. Fix it:
-right-click a repo in the Iceberg browser → **Postern > Sync reference commit**.
-Or evaluate:
+After CLI git operations, Iceberg's working copy reference commit can drift from
+filesystem HEAD, showing a false "dirty" state. Fix it: right-click a repo in
+the Iceberg browser → **Postern > Sync reference commit**. Or evaluate:
 
 ```smalltalk
 repo workingCopy referenceCommit: repo head commit.
