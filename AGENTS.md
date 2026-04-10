@@ -1,6 +1,7 @@
 # Postern — Agent Bootstrap
 
-A live Pharo eval server is running at `http://localhost:8422`.
+A live Smalltalk runtime is available at `http://localhost:8422`. You can compile
+code, run tests, inspect objects, and commit — all over HTTP, without touching the IDE.
 
 **Read the server's documentation before writing any Smalltalk:**
 
