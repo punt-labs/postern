@@ -241,6 +241,15 @@ PosternServerTest >> testStartOnWithAuthBindsToLoopback [
 ]
 
 { #category : 'tests' }
+PosternServerTest >> testStartOnWithAuthFalseBindsToLoopback [
+	"withAuth: false must still bind to loopback."
+	| server |
+	server := PosternServer startOn: 8500 withAuth: false.
+	[ self assert: server bindingAddress equals: NetNameResolver loopBackAddress ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
 PosternServerTest >> testStartPublicOnAlwaysEnablesAuth [
 	"startPublicOn: must always enable authentication."
 	| server delegate |
@@ -254,10 +263,10 @@ PosternServerTest >> testStartPublicOnAlwaysEnablesAuth [
 
 { #category : 'tests' }
 PosternServerTest >> testStartPublicOnBindsToAllInterfaces [
-	"startPublicOn: must not restrict to loopback."
+	"startPublicOn: must bind to all interfaces (nil bindingAddress = no restriction)."
 	| server |
 	server := PosternServer startPublicOn: 8500.
-	[ self assert: server bindingAddress ~= NetNameResolver loopBackAddress ]
+	[ self assert: server bindingAddress isNil ]
 		ensure: [ server stop ]
 ]
 
