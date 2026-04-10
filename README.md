@@ -7,8 +7,8 @@
 
 Pharo is a live programming environment. Compiling a method installs it into the
 running image immediately — no restart, no recompile step. Postern exposes that
-capability over HTTP: a running eval server on `localhost:8422` accepts Smalltalk
-expressions, executes them in the live image, and returns the result. Any outside
+capability over HTTP: a server on `localhost:8422` accepts Smalltalk expressions,
+executes them in the live image, and returns the result. Any outside
 tool — Claude Code, a CI job, a shell script — can drive the full development
 cycle without touching the Pharo GUI.
 
@@ -81,7 +81,7 @@ documentation site.
 ## System in Action
 
 A complete feature cycle — define a class, compile a method, run tests, commit —
-using nothing but HTTP to the eval server.
+using nothing but HTTP to the server.
 
 ```bash
 # Agent reads the image's API and conventions before writing anything
