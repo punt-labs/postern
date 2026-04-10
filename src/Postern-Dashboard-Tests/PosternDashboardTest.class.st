@@ -63,6 +63,11 @@ PosternDashboardTest >> tearDown [
 ]
 
 { #category : 'tests' }
+PosternDashboardTest >> testDefaultKeyboardFocusIsFilterInput [
+	self assert: dashboard defaultKeyboardFocus identicalTo: dashboard filterInput
+]
+
+{ #category : 'tests' }
 PosternDashboardTest >> testClearLog [
 	self addEntryToLogger: (self newEntry: 'x').
 	dashboard refreshLogTable.

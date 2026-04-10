@@ -210,10 +210,22 @@ PosternDashboard >> defaultLayout [
 		yourself
 ]
 
+{ #category : 'api - focus' }
+PosternDashboard >> defaultKeyboardFocus [
+	"Start keyboard focus in the filter field when the dashboard opens."
+	^ filterInput
+]
+
 { #category : 'accessing' }
 PosternDashboard >> detailPresenter [
 	"Exposed for testing."
 	^ detailPresenter
+]
+
+{ #category : 'accessing' }
+PosternDashboard >> filterInput [
+	"Exposed for testing."
+	^ filterInput
 ]
 
 { #category : 'private' }
