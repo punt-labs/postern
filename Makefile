@@ -35,6 +35,7 @@ VM := $(IMAGE_DIR)/pharo
 PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
 DETACH := $(CURDIR)/scripts/postern-detach
+PORT_STATE := $(CURDIR)/scripts/postern-port-state
 PHARO_RUNTIME_HOME := $(CURDIR)/.tmp/pharo-home
 SRC_DIR := $(CURDIR)/src
 URL := http://localhost:$(PORT)/repl
@@ -119,25 +120,6 @@ start: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
-		listener_pids() { \
-			if command -v lsof >/dev/null 2>&1; then \
-				lsof -tiTCP:$(PORT) -sTCP:LISTEN 2>/dev/null || true; \
-			elif command -v ss >/dev/null 2>&1; then \
-				ss -ltnp "( sport = :$(PORT) )" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p'; \
-			fi; \
-		}; \
-		print_listener_hint() { \
-			had_listener=0; \
-			for listener_pid in $$1; do \
-				[ -n "$$listener_pid" ] || continue; \
-				had_listener=1; \
-				echo "       Listener PID $$listener_pid"; \
-				ps -p "$$listener_pid" -o command= 2>/dev/null || true; \
-			done; \
-			if [ $$had_listener -eq 0 ]; then \
-				echo "       Another process may be holding port $(PORT)."; \
-			fi; \
-		}; \
 		if [ "$$(uname -s)" = "Linux" ] && [ -z "$$DISPLAY" ] && [ -z "$$WAYLAND_DISPLAY" ]; then \
 			echo "  FAIL make start requires a GUI session on Linux (DISPLAY or WAYLAND_DISPLAY)."; \
 			echo "       Use 'make start-headless' for a terminal-only session."; \
@@ -148,10 +130,9 @@ start: $(SETUP_STAMP)
 			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start'."; \
 			exit 1; \
 		fi; \
-		existing_listeners=$$(listener_pids | tr '\n' ' '); \
-		if [ -n "$$existing_listeners" ]; then \
+		if $(PORT_STATE) $(PORT) in-use; then \
 			echo "  FAIL Port $(PORT) is already in use."; \
-			print_listener_hint "$$existing_listeners"; \
+			$(PORT_STATE) $(PORT) hint; \
 			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start'."; \
 			exit 1; \
 		fi; \
@@ -179,10 +160,9 @@ start: $(SETUP_STAMP)
 			echo "  FAIL An eval server responded on port $(PORT), but the launched Pharo process exited."; \
 			echo "       Another listener likely owns the port now."; \
 		else \
-			listeners_after=$$(listener_pids | tr '\n' ' '); \
-			if [ -n "$$listeners_after" ]; then \
+			if $(PORT_STATE) $(PORT) in-use; then \
 				echo "  FAIL Port $(PORT) became occupied while starting."; \
-				print_listener_hint "$$listeners_after"; \
+				$(PORT_STATE) $(PORT) hint; \
 			else \
 				echo "  FAIL Server did not stay up. Check $(LOG_FILE)"; \
 			fi; \
@@ -194,34 +174,14 @@ start-headless: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
-		listener_pids() { \
-			if command -v lsof >/dev/null 2>&1; then \
-				lsof -tiTCP:$(PORT) -sTCP:LISTEN 2>/dev/null || true; \
-			elif command -v ss >/dev/null 2>&1; then \
-				ss -ltnp "( sport = :$(PORT) )" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p'; \
-			fi; \
-		}; \
-		print_listener_hint() { \
-			had_listener=0; \
-			for listener_pid in $$1; do \
-				[ -n "$$listener_pid" ] || continue; \
-				had_listener=1; \
-				echo "       Listener PID $$listener_pid"; \
-				ps -p "$$listener_pid" -o command= 2>/dev/null || true; \
-			done; \
-			if [ $$had_listener -eq 0 ]; then \
-				echo "       Another process may be holding port $(PORT)."; \
-			fi; \
-		}; \
 		if $(HEALTHCHECK) >/dev/null 2>&1; then \
 			echo "  FAIL An eval server is already responding on port $(PORT)."; \
 			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start-headless'."; \
 			exit 1; \
 		fi; \
-		existing_listeners=$$(listener_pids | tr '\n' ' '); \
-		if [ -n "$$existing_listeners" ]; then \
+		if $(PORT_STATE) $(PORT) in-use; then \
 			echo "  FAIL Port $(PORT) is already in use."; \
-			print_listener_hint "$$existing_listeners"; \
+			$(PORT_STATE) $(PORT) hint; \
 			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start-headless'."; \
 			exit 1; \
 		fi; \
@@ -249,10 +209,9 @@ start-headless: $(SETUP_STAMP)
 			echo "  FAIL An eval server responded on port $(PORT), but the launched Pharo process exited."; \
 			echo "       Another listener likely owns the port now."; \
 		else \
-			listeners_after=$$(listener_pids | tr '\n' ' '); \
-			if [ -n "$$listeners_after" ]; then \
+			if $(PORT_STATE) $(PORT) in-use; then \
 				echo "  FAIL Port $(PORT) became occupied while starting."; \
-				print_listener_hint "$$listeners_after"; \
+				$(PORT_STATE) $(PORT) hint; \
 			else \
 				echo "  FAIL Server did not stay up. Check $(LOG_FILE)"; \
 			fi; \
@@ -275,25 +234,6 @@ stop:
 				pending="$$pending $$next_pid"; \
 			done; \
 		done; \
-	}; \
-	listener_pids() { \
-		if command -v lsof >/dev/null 2>&1; then \
-			lsof -tiTCP:$(PORT) -sTCP:LISTEN 2>/dev/null || true; \
-		elif command -v ss >/dev/null 2>&1; then \
-			ss -ltnp "( sport = :$(PORT) )" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p'; \
-		fi; \
-	}; \
-	print_listener_hint() { \
-		had_listener=0; \
-		for listener_pid in $$1; do \
-			[ -n "$$listener_pid" ] || continue; \
-			had_listener=1; \
-			echo "       Listener PID $$listener_pid"; \
-			ps -p "$$listener_pid" -o command= 2>/dev/null || true; \
-		done; \
-		if [ $$had_listener -eq 0 ]; then \
-			echo "       Another process may be holding port $(PORT)."; \
-		fi; \
 	}; \
 	TARGETS=""; \
 	if [ -f $(PID_FILE) ]; then \
@@ -323,7 +263,7 @@ stop:
 	rm -f $(PID_FILE); \
 	if $(HEALTHCHECK) >/dev/null 2>&1; then \
 		echo "  FAIL Port $(PORT) is still responding after stop."; \
-		print_listener_hint "$$(listener_pids | tr '\n' ' ')"; \
+		$(PORT_STATE) $(PORT) hint; \
 		exit 1; \
 	fi; \
 	if [ -n "$$TARGETS" ]; then \

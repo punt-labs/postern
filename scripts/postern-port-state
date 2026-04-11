@@ -1,0 +1,60 @@
+#!/usr/bin/env sh
+
+set -eu
+
+if [ "$#" -ne 2 ]; then
+  echo "usage: $0 PORT {in-use|hint}" >&2
+  exit 64
+fi
+
+PORT=$1
+MODE=$2
+
+port_in_use() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1
+  elif command -v ss >/dev/null 2>&1; then
+    ss -ltn "( sport = :$PORT )" 2>/dev/null | awk 'NR > 1 { found = 1 } END { exit(found ? 0 : 1) }'
+  else
+    return 1
+  fi
+}
+
+listener_pids() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true
+  elif command -v ss >/dev/null 2>&1; then
+    ss -ltnp "( sport = :$PORT )" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p'
+  fi
+}
+
+print_hint() {
+  pids=$(listener_pids)
+
+  if [ -n "$pids" ]; then
+    for pid in $pids; do
+      case "$pid" in
+        ''|*[!0-9]*)
+          continue
+          ;;
+      esac
+      echo "       Listener PID $pid"
+      ps -p "$pid" -o command= 2>/dev/null || true
+    done
+  else
+    echo "       Another process may be holding port $PORT."
+  fi
+}
+
+case "$MODE" in
+  in-use)
+    port_in_use
+    ;;
+  hint)
+    print_hint
+    ;;
+  *)
+    echo "unknown mode: $MODE" >&2
+    exit 64
+    ;;
+esac
