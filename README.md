@@ -19,9 +19,14 @@ cycle without touching the Pharo GUI.
 ```bash
 git clone https://github.com/punt-labs/postern.git
 cd postern
+make          # shows available targets
 make setup    # downloads Pharo 12 VM + image, loads all Postern packages
-make start    # launches Pharo GUI with eval server on port 8422
+make start    # starts Postern with the Pharo GUI on macOS and Linux desktop sessions
+# make start-headless  # optional: start without the GUI instead
 ```
+
+On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
+`make start-headless`.
 
 ```bash
 curl -s http://localhost:8422/health    # → ok
@@ -58,11 +63,12 @@ other agent that speaks HTTP all work the same way.
 
 The `/help` endpoint is the interface contract between an external agent and the
 image. A session that has never seen the image before reads `/help` first and uses
-those nine sections to navigate correctly:
+those ten sections to navigate correctly:
 
 | Section | What it documents |
 |---------|-------------------|
 | `/help/api` | Eval server protocol: endpoints, auth, request/response format |
+| `/help/browse` | Read-only introspection: classes, methods, senders, implementors, source lookup |
 | `/help/pharo` | Pharo 12 standards: fluid class syntax, protocols, JSON pattern |
 | `/help/dispatch` | Sub-agent delegation: TDD cycle, required spec elements, anti-patterns |
 | `/help/lint` | Lint discipline: `make lint` is the gate, not per-method critiques |
@@ -75,6 +81,10 @@ those nine sections to navigate correctly:
 The content is served from the live image at runtime, so it reflects the actual
 loaded packages and the conventions that image was built with — not a static
 documentation site.
+
+For Codex users, this repo also includes `.codex/config.toml` and
+`codex/rules/default.rules` so localhost help/REPL access can be
+preconfigured after the repo is trusted once.
 
 ## System in Action
 
@@ -147,7 +157,7 @@ lines of Smalltalk — all written, tested, and committed through Postern.
 
 | Package | Contents |
 |---------|----------|
-| `Postern-Core` | `PosternServer`, `PosternDelegate`, `PosternHelp` (9-route `/help` endpoint), `PosternImageBrowser` (introspection facade), `PosternWidget` (menu-bar status strip) |
+| `Postern-Core` | `PosternServer`, `PosternDelegate`, `PosternHelp` (10-route `/help` endpoint), `PosternImageBrowser` (introspection facade), `PosternWidget` (menu-bar status strip) |
 | `Postern-Dashboard` | `PosternDashboard` — Spec2 traffic monitor with per-server log isolation; `PosternRequestLogger`, `PosternDashboardModel` |
 | `Postern-IcebergExtensions` | `PosternSyncReferenceCommitCommand` — Iceberg context-menu command that syncs the working copy reference commit after CLI git operations |
 
@@ -177,8 +187,8 @@ Metacello new
 |-------|--------|-------------|
 | `/repl` | `POST` | Evaluate Smalltalk (`text/plain` body). Returns `printString` of result. |
 | `/health` | `GET` | Liveness check. Returns `ok`. No auth required. |
-| `/help` | `GET` | Table of contents for the nine help sections. No auth required. |
-| `/help/{section}` | `GET` | `api`, `pharo`, `dispatch`, `lint`, `git`, `testing`, `safety`, `makefile`, or `lessons`. |
+| `/help` | `GET` | Table of contents for the ten help sections. No auth required. |
+| `/help/{section}` | `GET` | `api`, `browse`, `pharo`, `dispatch`, `lint`, `git`, `testing`, `safety`, `makefile`, or `lessons`. |
 
 **Binding and authentication:**
 

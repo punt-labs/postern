@@ -4,8 +4,8 @@ methods are class-side string methods returning Markdown documents.
 The endpoint itself is routed by PosternDelegate>>handleHelpRequest:
 which dispatches via PosternHelp class >> sectionFor: aPathSegment.
 
-9 sections are authored: api, makefile, pharo, lint, dispatch, git,
-testing, safety, lessons. Each returns a standalone Markdown document
+10 sections are authored: api, browse, makefile, pharo, lint,
+dispatch, git, testing, safety, lessons. Each returns a standalone Markdown document
 an external agent fetches via GET /help/<section>.
 
 Drift-detection tests in PosternHelpTest verify that every code fence
@@ -118,8 +118,8 @@ curl -s http://localhost:8422/help
 Returns a specific help section (text/markdown). No auth required.
 Returns 404 if the section name is unknown.
 
-Valid sections: `api`, `makefile`, `pharo`, `lint`, `dispatch`,
-`git`, `testing`, `safety`, `lessons`.
+Valid sections: `api`, `browse`, `makefile`, `pharo`, `lint`,
+`dispatch`, `git`, `testing`, `safety`, `lessons`.
 
 ```bash
 curl -s http://localhost:8422/help/api
@@ -200,6 +200,130 @@ make stop     "kills the VM — does NOT save the image"
 - `PosternHelp` — class-side methods returning help section content
 - `PosternImageBrowser` — introspection facade for browsing classes,
   methods, senders, implementors, and code search from outside
+'
+]
+
+{ #category : 'help content' }
+PosternHelp class >> browse [
+	"Read-only introspection patterns for external agents."
+	^ '# /help/browse — Read-Only Image Introspection
+
+## Overview
+
+Use this section when you need to understand the loaded image without
+changing it. The goal is fast orientation: classes, selectors,
+implementors, senders, and source lookups.
+
+For read-only work:
+
+- Prefer `GET /help/*` and `POST /repl` expressions that query state.
+- Avoid `compile:classified:`, class installation, refactorings, or
+  anything that mutates classes.
+- Keep expressions focused and inspect one thing per request.
+
+## Basic Introspection
+
+```bash
+# List Postern packages currently loaded
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "(RPackageOrganizer default packages
+    collect: [ :p | p name ]) select: [ :n | n beginsWith: ''Postern-'' ]"
+```
+
+```bash
+# List classes in a package
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "((Smalltalk globals allClasses
+    select: [ :c | c package name = ''Postern-Dashboard'' ])
+    collect: #name) sorted"
+```
+
+```bash
+# Read class comment and protocols
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternDashboard comment"
+```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternDashboard protocolNames"
+```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternDashboard class protocolNames"
+```
+
+## Selector and Source Lookup
+
+```bash
+# Implementors of a selector
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "(SystemNavigation default allImplementorsOf: #sectionFor:)
+    collect: [ :m | m methodClass name -> m selector ]"
+```
+
+```bash
+# Senders of a selector
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "(SystemNavigation default allSendersOf: #refreshLogTable)
+    collect: [ :m | m methodClass name -> m selector ]"
+```
+
+```bash
+# Fetch exact method source
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "(PosternHelp class >> #tableOfContents) sourceCode"
+```
+
+## Using `PosternImageBrowser`
+
+`PosternImageBrowser` provides a query facade oriented to external
+tools. Use it for concise summaries before drilling into raw source.
+
+```bash
+# Class summary
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternImageBrowser browseClass: ''PosternDashboard''"
+```
+
+```bash
+# Method summary
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternImageBrowser browseMethod: ''PosternDashboard'' selector: ''refreshLogTable''"
+```
+
+```bash
+# References and implementors
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternImageBrowser sendersOf: #sectionFor:"
+```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "PosternImageBrowser implementorsOf: #sectionFor:"
+```
+
+## Read-Only Checklist
+
+Before reporting architecture or behavior:
+
+1. Confirm package and class names from the running image.
+2. Confirm selectors with implementors/senders (no guessing).
+3. Quote behavior from method source when precision matters.
+4. Avoid touching mutable APIs unless the task explicitly asks for edits.
 '
 ]
 
@@ -778,11 +902,13 @@ This means:
 
 | Target | What it does |
 |--------|-------------|
+| `make` / `make help` | Show the available make targets |
 | `make setup` | Download Pharo VM + image, load all Tonel packages from `src/` |
-| `make start` | Launch Pharo with eval server on port 8422 |
+| `make start` | Start Postern with the Pharo GUI on port 8422 |
+| `make start-headless` | Start Postern headlessly on port 8422 |
+| `make start-ui` | Alias for `make start` |
 | `make stop` | Kill the VM (does NOT save). Cleans up orphan processes |
 | `make rebuild` | `stop` + clean image + `setup`. Fresh image from scratch |
-| `make save` | Snapshot the running image (rarely needed) |
 
 ### Development
 
@@ -801,15 +927,31 @@ This means:
 | Target | What it does |
 |--------|-------------|
 | `make clean` | Remove image, VM, PID file, logs — full reset |
-| `make clean-image` | Remove just the image and changes files |
+| `make clean-image` | Remove the image, logs, and setup state |
+
+## Launch Mode
+
+`make` with no target defaults to `make help`.
+
+`make start` is the default visual workflow and launches the Pharo
+GUI on macOS and Linux desktop sessions.
+
+`make start-headless` is the terminal/CI path.
+
+`make start-ui` is an alias for `make start`.
+
+On Linux, `make start` requires an active `DISPLAY` or
+`WAYLAND_DISPLAY` session. Use `make start-headless` if no GUI
+session is available.
 
 ## Typical Workflows
 
 ### First time setup
 
 ```bash
+make          # shows available targets
 make setup    # downloads VM + image, loads packages
-make start    # starts eval server on :8422
+make start    # starts Postern with the GUI on :8422
 make status   # confirms it is alive
 ```
 
@@ -842,11 +984,10 @@ make start
 `src/` by looking for directories containing `package.st`. Packages
 load in dependency order using a priority map:
 
-1. Foundation packages (PharoKeyring, PharoSupervisedProcess, Postern-Core)
-2. SDK types, errors, streaming
-3. SDK client, agent tools
-4. Workbench, examples
-5. Test packages (loaded last)
+1. `Postern-Core`
+2. `Postern-Dashboard` and `Postern-IcebergExtensions`
+3. `BaselineOfPostern`
+4. `*-Tests` packages (loaded last)
 
 After loading, the loader normalizes any LF line endings in method
 source to CR (Pharo''s internal convention).
@@ -1142,6 +1283,7 @@ PosternHelp class >> sectionTable [
 	for sectionFor:."
 	^ Dictionary new
 		at: 'api' put: [ self api ];
+		at: 'browse' put: [ self browse ];
 		at: 'makefile' put: [ self makefile ];
 		at: 'pharo' put: [ self pharo ];
 		at: 'lint' put: [ self lint ];
@@ -1165,6 +1307,7 @@ agent or tool.
 ## Sections
 
 - [`/help/api`](/help/api) — Eval server protocol: endpoints, auth, examples
+- [`/help/browse`](/help/browse) — Read-only introspection: classes, methods, senders, implementors, source lookup
 - [`/help/makefile`](/help/makefile) — Image lifecycle: make targets, disposable image discipline
 - [`/help/pharo`](/help/pharo) — Pharo 12 standards: fluid syntax, protocols, JSON pattern
 - [`/help/lint`](/help/lint) — Lint discipline: `make lint` is the gate

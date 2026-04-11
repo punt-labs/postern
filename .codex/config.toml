@@ -1,0 +1,9 @@
+# Postern drives a local HTTP server on localhost:8422.
+# Keep filesystem writes scoped to the workspace, but allow local network
+# access so help and REPL calls work without switching to a looser sandbox.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
