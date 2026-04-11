@@ -135,7 +135,8 @@ case "$OS_NAME" in
       printf '%s\n' "downloaded VM archive did not contain a runnable pharo binary" >&2
       exit 1
     fi
-    HEADLESS_FLAG=--nodisplay
+    # The current Pharo VM accepts --vm-display-null for Linux headless CI sessions.
+    HEADLESS_FLAG=--vm-display-null
     ;;
   Windows)
     VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" \( -name Pharo.exe -o -name PharoConsole.exe \) | head -n 1)
