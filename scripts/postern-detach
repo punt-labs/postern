@@ -1,0 +1,147 @@
+#!/usr/bin/env sh
+
+set -eu
+
+if [ "$#" -lt 4 ]; then
+  echo "usage: $0 PID_FILE LOG_FILE RUNTIME_HOME CMD [ARG...]" >&2
+  exit 64
+fi
+
+PID_FILE=$1
+LOG_FILE=$2
+RUNTIME_HOME=$3
+shift 3
+
+PREF_DIR=
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  Darwin)
+    PREF_DIR=${HOME:-}/Library/Preferences/pharo
+    ;;
+  *)
+    if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+      PREF_DIR=${XDG_CONFIG_HOME}/pharo
+    elif [ -n "${HOME:-}" ]; then
+      PREF_DIR=${HOME}/.config/pharo
+    fi
+    ;;
+esac
+
+USE_FALLBACK_HOME=0
+if [ -z "$PREF_DIR" ]; then
+  USE_FALLBACK_HOME=1
+elif [ -d "$PREF_DIR" ]; then
+  [ -w "$PREF_DIR" ] || USE_FALLBACK_HOME=1
+else
+  PARENT_DIR=$PREF_DIR
+  while [ ! -e "$PARENT_DIR" ] && [ "$PARENT_DIR" != "/" ]; do
+    PARENT_DIR=$(dirname "$PARENT_DIR")
+  done
+  [ -w "$PARENT_DIR" ] || USE_FALLBACK_HOME=1
+fi
+
+if [ "$USE_FALLBACK_HOME" -eq 1 ]; then
+  export HOME=$RUNTIME_HOME
+  export XDG_CONFIG_HOME=$RUNTIME_HOME/.config
+  export XDG_DATA_HOME=$RUNTIME_HOME/.local/share
+  mkdir -p "$HOME/Library/Preferences/pharo" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+fi
+
+if command -v perl >/dev/null 2>&1; then
+  exec perl -MPOSIX=setsid -e '
+use strict;
+use warnings;
+
+my ($pid_file, $log_file, @cmd) = @ARGV;
+
+pipe my $reader, my $writer or die "pipe failed: $!\n";
+
+my $pid = fork();
+defined $pid or die "fork 1 failed: $!\n";
+if ($pid) {
+    close $writer or die "close writer failed: $!\n";
+    my $status = <$reader>;
+    close $reader or die "close reader failed: $!\n";
+    if (defined $status && $status eq "ok\n") {
+        exit 0;
+    }
+    die defined $status ? $status : "detach failed before pidfile creation\n";
+}
+
+close $reader or die "close reader failed: $!\n";
+
+setsid() != -1 or die "setsid failed: $!\n";
+
+$pid = fork();
+defined $pid or die "fork 2 failed: $!\n";
+if ($pid) {
+    close $writer or die "close writer failed: $!\n";
+    exit 0;
+}
+
+$SIG{HUP} = "IGNORE";
+
+open STDIN,  "<", "/dev/null" or die "open /dev/null failed: $!\n";
+open STDOUT, ">", $log_file   or die "open log failed: $!\n";
+open STDERR, ">&", \*STDOUT   or die "redirect stderr failed: $!\n";
+
+open my $pid_fh, ">", $pid_file or die "open pidfile failed: $!\n";
+print {$pid_fh} "$$\n" or die "write pidfile failed: $!\n";
+close $pid_fh or die "close pidfile failed: $!\n";
+
+print {$writer} "ok\n" or die "notify parent failed: $!\n";
+close $writer or die "close writer failed: $!\n";
+
+exec @cmd or die "exec failed: $!\n";
+' "$PID_FILE" "$LOG_FILE" "$@"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 -c '
+import os
+import sys
+
+pid_file, log_file, *cmd = sys.argv[1:]
+
+rfd, wfd = os.pipe()
+
+pid = os.fork()
+if pid:
+    os.close(wfd)
+    status = os.read(rfd, 1024)
+    os.close(rfd)
+    if status == b"ok\n":
+        os._exit(0)
+    if status:
+        sys.stderr.write(status.decode("utf-8", "replace"))
+    else:
+        sys.stderr.write("detach failed before pidfile creation\n")
+    os._exit(1)
+
+os.close(rfd)
+
+os.setsid()
+
+pid = os.fork()
+if pid:
+    os.close(wfd)
+    os._exit(0)
+
+devnull = os.open("/dev/null", os.O_RDONLY)
+log_fd = os.open(log_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+
+os.dup2(devnull, 0)
+os.dup2(log_fd, 1)
+os.dup2(log_fd, 2)
+
+with open(pid_file, "w", encoding="ascii") as pid_fh:
+    pid_fh.write(f"{os.getpid()}\n")
+
+os.write(wfd, b"ok\n")
+os.close(wfd)
+
+os.execvp(cmd[0], cmd)
+' "$PID_FILE" "$LOG_FILE" "$@"
+fi
+
+nohup "$@" >"$LOG_FILE" 2>&1 </dev/null &
+echo $! >"$PID_FILE"
