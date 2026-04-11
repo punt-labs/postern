@@ -28,6 +28,9 @@ make start    # starts Postern with the Pharo GUI on macOS and Linux desktop ses
 On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
 `make start-headless`.
 
+If port `8422` is already in use, override it on the command line, for
+example `make PORT=8432 start-headless`.
+
 ```bash
 curl -s http://localhost:8422/health    # → ok
 curl -s http://localhost:8422/help     # → self-documenting table of contents

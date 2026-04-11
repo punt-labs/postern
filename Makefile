@@ -3,6 +3,9 @@
 # Default:
 #   make            — show this help
 #
+# Port override:
+#   make PORT=8432 start-headless — run Postern on a different local port
+#
 # Image lifecycle:
 #   make setup      — download Pharo VM + image, load all packages
 #   make start      — launch Pharo GUI with eval server on :8422
@@ -31,6 +34,9 @@ CHANGES := $(IMAGE_DIR)/Pharo.changes
 VM := $(IMAGE_DIR)/pharo
 PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
+DETACH := $(CURDIR)/scripts/postern-detach
+PORT_STATE := $(CURDIR)/scripts/postern-port-state
+PHARO_RUNTIME_HOME := $(CURDIR)/.tmp/pharo-home
 SRC_DIR := $(CURDIR)/src
 URL := http://localhost:$(PORT)/repl
 HEALTH_URL := http://localhost:$(PORT)/health
@@ -59,6 +65,7 @@ help:
 		"Postern make targets" \
 		"" \
 		"  make help         Show this help" \
+		"  make PORT=8432 start-headless  Override the default port for any target" \
 		"  make setup        Download Pharo and load all Tonel packages" \
 		"  make start        Start Postern with the Pharo UI on :$(PORT)" \
 		"  make start-headless  Start Postern headlessly on :$(PORT)" \
@@ -72,7 +79,7 @@ help:
 		"  make status       Check the eval server and loaded class count" \
 		"  make check        Verify packages are loaded and Iceberg is clean" \
 		"  make transcript   Print the Pharo Transcript" \
-		"  make clean-image  Remove the disposable image, logs, and setup state" \
+		"  make clean-image  Remove the disposable image, logs, setup state, and runtime home" \
 		"  make clean        Remove the entire downloaded Pharo workspace"
 
 $(IMAGE_DIR):
@@ -118,20 +125,48 @@ start: $(SETUP_STAMP)
 			echo "       Use 'make start-headless' for a terminal-only session."; \
 			exit 1; \
 		fi; \
+		if $(HEALTHCHECK) >/dev/null 2>&1; then \
+			echo "  FAIL An eval server is already responding on port $(PORT)."; \
+			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start'."; \
+			exit 1; \
+		fi; \
+		if $(PORT_STATE) $(PORT) in-use; then \
+			echo "  FAIL Port $(PORT) is already in use."; \
+			$(PORT_STATE) $(PORT) hint; \
+			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start'."; \
+			exit 1; \
+		fi; \
 		echo ">> Starting Pharo UI on port $(PORT)..."; \
-		nohup $(VM_UI) $(IMAGE) eval --no-quit \
-			"PosternServer startOn: $(PORT)" \
-			> $(LOG_FILE) 2>&1 < /dev/null & \
-		echo $$! > $(PID_FILE); \
+		rm -f $(PID_FILE); \
+		$(DETACH) $(PID_FILE) $(LOG_FILE) $(PHARO_RUNTIME_HOME) \
+			$(VM_UI) $(IMAGE) eval --no-quit \
+			"PosternServer startOn: $(PORT)"; \
 		for i in $$(seq 1 30); do \
-			if $(HEALTHCHECK) >/dev/null 2>&1; then \
+			PID=""; \
+			if [ -f $(PID_FILE) ]; then \
+				PID=$$(cat $(PID_FILE) 2>/dev/null || true); \
+			fi; \
+			if [ -n "$$PID" ] && ! kill -0 $$PID 2>/dev/null; then \
+				break; \
+			fi; \
+			if [ -n "$$PID" ] && $(HEALTHCHECK) >/dev/null 2>&1; then \
 				echo "  ok Eval server ready on port $(PORT)"; \
 				exit 0; \
 			fi; \
 			sleep 1; \
 		done; \
 		rm -f $(PID_FILE); \
-		echo "  FAIL Server did not start. Check $(LOG_FILE)"; \
+		if $(HEALTHCHECK) >/dev/null 2>&1; then \
+			echo "  FAIL An eval server responded on port $(PORT), but the launched Pharo process exited."; \
+			echo "       Another listener likely owns the port now."; \
+		else \
+			if $(PORT_STATE) $(PORT) in-use; then \
+				echo "  FAIL Port $(PORT) became occupied while starting."; \
+				$(PORT_STATE) $(PORT) hint; \
+			else \
+				echo "  FAIL Server did not stay up. Check $(LOG_FILE)"; \
+			fi; \
+		fi; \
 		exit 1; \
 	fi
 
@@ -139,20 +174,48 @@ start-headless: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
+		if $(HEALTHCHECK) >/dev/null 2>&1; then \
+			echo "  FAIL An eval server is already responding on port $(PORT)."; \
+			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start-headless'."; \
+			exit 1; \
+		fi; \
+		if $(PORT_STATE) $(PORT) in-use; then \
+			echo "  FAIL Port $(PORT) is already in use."; \
+			$(PORT_STATE) $(PORT) hint; \
+			echo "       Stop the existing listener or choose another port with 'make PORT=8432 start-headless'."; \
+			exit 1; \
+		fi; \
 		echo ">> Starting Pharo headlessly on port $(PORT)..."; \
-		nohup $(VM) $(IMAGE) eval --no-quit \
-			"PosternServer startOn: $(PORT)" \
-			> $(LOG_FILE) 2>&1 < /dev/null & \
-		echo $$! > $(PID_FILE); \
+		rm -f $(PID_FILE); \
+		$(DETACH) $(PID_FILE) $(LOG_FILE) $(PHARO_RUNTIME_HOME) \
+			$(VM) $(IMAGE) eval --no-quit \
+			"PosternServer startOn: $(PORT)"; \
 		for i in $$(seq 1 30); do \
-			if $(HEALTHCHECK) >/dev/null 2>&1; then \
+			PID=""; \
+			if [ -f $(PID_FILE) ]; then \
+				PID=$$(cat $(PID_FILE) 2>/dev/null || true); \
+			fi; \
+			if [ -n "$$PID" ] && ! kill -0 $$PID 2>/dev/null; then \
+				break; \
+			fi; \
+			if [ -n "$$PID" ] && $(HEALTHCHECK) >/dev/null 2>&1; then \
 				echo "  ok Eval server ready on port $(PORT)"; \
 				exit 0; \
 			fi; \
 			sleep 1; \
 		done; \
 		rm -f $(PID_FILE); \
-		echo "  FAIL Server did not start. Check $(LOG_FILE)"; \
+		if $(HEALTHCHECK) >/dev/null 2>&1; then \
+			echo "  FAIL An eval server responded on port $(PORT), but the launched Pharo process exited."; \
+			echo "       Another listener likely owns the port now."; \
+		else \
+			if $(PORT_STATE) $(PORT) in-use; then \
+				echo "  FAIL Port $(PORT) became occupied while starting."; \
+				$(PORT_STATE) $(PORT) hint; \
+			else \
+				echo "  FAIL Server did not stay up. Check $(LOG_FILE)"; \
+			fi; \
+		fi; \
 		exit 1; \
 	fi
 
@@ -198,7 +261,16 @@ stop:
 		kill -0 $$TARGET 2>/dev/null && kill -9 $$TARGET 2>/dev/null || true; \
 	done; \
 	rm -f $(PID_FILE); \
-	echo "  ok Stopped"
+	if $(HEALTHCHECK) >/dev/null 2>&1; then \
+		echo "  FAIL Port $(PORT) is still responding after stop."; \
+		$(PORT_STATE) $(PORT) hint; \
+		exit 1; \
+	fi; \
+	if [ -n "$$TARGETS" ]; then \
+		echo "  ok Stopped"; \
+	else \
+		echo "  ok Nothing to stop"; \
+	fi
 
 rebuild: stop clean-image setup
 	@echo "  ok Fresh image rebuilt"
@@ -312,10 +384,11 @@ clean-image:
 	rm -f $(BOOTSTRAP_SCRIPT) $(SETUP_STAMP)
 	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log
+	rm -rf $(PHARO_RUNTIME_HOME)
 	@echo "  ok Image removed"
 
 clean:
 	$(MAKE) stop 2>/dev/null || true
-	rm -rf $(IMAGE_DIR) $(PID_FILE) $(LOG_FILE)
+	rm -rf $(IMAGE_DIR) $(PID_FILE) $(LOG_FILE) $(PHARO_RUNTIME_HOME)
 	rm -f PharoDebug.log
 	@echo "  ok Clean"

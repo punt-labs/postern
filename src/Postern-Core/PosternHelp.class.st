@@ -927,7 +927,7 @@ This means:
 | Target | What it does |
 |--------|-------------|
 | `make clean` | Remove image, VM, PID file, logs — full reset |
-| `make clean-image` | Remove the image, logs, and setup state |
+| `make clean-image` | Remove the image, logs, setup state, and repo-local runtime home |
 
 ## Launch Mode
 
@@ -939,6 +939,15 @@ GUI on macOS and Linux desktop sessions.
 `make start-headless` is the terminal/CI path.
 
 `make start-ui` is an alias for `make start`.
+
+Any target can override the default port, for example:
+
+```bash
+make PORT=8432 start-headless
+```
+
+If port 8422 is already occupied, the start targets fail fast instead
+of silently attaching to an existing listener.
 
 On Linux, `make start` requires an active `DISPLAY` or
 `WAYLAND_DISPLAY` session. Use `make start-headless` if no GUI
