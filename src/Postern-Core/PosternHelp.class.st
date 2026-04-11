@@ -132,6 +132,14 @@ Auth is optional. When enabled, every `/repl` request must include
 the `X-Eval-Token` header with the correct token. `/health` and
 `/help` are exempt from auth — they work without a token.
 
+The default local startup path (`PosternServer startOn:`, `make start`,
+or `make start-headless`) does **not** enable auth. When auth is enabled,
+it only checks whether
+the caller has the shared token. It does not sandbox evaluation, limit
+what code can do, or provide separate read-only and write permissions.
+Any client that can call `/repl` successfully can run normal Smalltalk
+code in the image.
+
 ```bash
 # With auth enabled
 curl -s -X POST http://localhost:8422/repl \
@@ -142,7 +150,9 @@ curl -s -X POST http://localhost:8422/repl \
 
 When the server starts with auth (`PosternServer startOn: 8422
 withAuth: true`), it generates an 8-character hex token and writes
-it to `.tmp/eval-token`. The Makefile reads this file automatically.
+it to `.tmp/eval-token`. Read that file and add the `X-Eval-Token`
+header explicitly in your client requests. The default `make start`
+and `make start-headless` targets do not enable auth.
 
 An unauthenticated request to `/repl` returns HTTP 401.
 
@@ -1151,6 +1161,24 @@ HTTP responses.
 PosternHelp class >> safety [
 	"LibC subprocess deadlock and image safety rules."
 	^ '# /help/safety — LibC Deadlock and Image Safety
+
+## Security Warning
+
+Postern accepts Smalltalk code over HTTP and runs it in the live image.
+A client that can successfully call `/repl` can do what normal Smalltalk
+code in that image can do: change classes and methods, inspect objects,
+read and write files, and run shell commands with the OS permissions of
+the user running Pharo.
+
+By default, `make start` and `make start-headless` bind to `localhost`
+only and do **not** enable auth. When auth is enabled, the
+`X-Eval-Token` is a shared secret for `/repl`; it is not a sandbox,
+permission system, or read-only mode. `/help` and `/health` remain
+unauthenticated even when auth is on.
+
+Do not expose Postern to untrusted networks or untrusted agents. Do not
+run it in an environment containing secrets or data you would not hand
+to arbitrary code running as your user account.
 
 ## The LibC Self-Call Deadlock
 

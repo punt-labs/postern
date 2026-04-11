@@ -36,6 +36,31 @@ curl -s http://localhost:8422/health    # → ok
 curl -s http://localhost:8422/help     # → self-documenting table of contents
 ```
 
+## Security Warning
+
+Postern accepts Smalltalk code over HTTP and runs it in the live image.
+A client that can successfully call `/repl` can do what normal Smalltalk
+code in that image can do: change classes and methods, inspect objects,
+read and write files, and run shell commands with the OS permissions of
+the user running Pharo.
+
+By default, `make start` and `make start-headless` bind to `localhost`
+only and do **not** enable auth. That is intended for local development
+on a trusted machine. If you enable auth, the `X-Eval-Token` is a shared
+secret for `/repl`; it is not a sandbox, permission system, or read-only
+mode. `/help` and `/health` remain unauthenticated even when auth is on.
+
+Do not expose Postern to untrusted networks or untrusted agents. Do not
+run it in an environment containing secrets or data you would not hand to
+arbitrary code running as your user account.
+
+## Trivia
+
+The name is intentional: a postern is a back door or gate, a private side
+entrance, or in fortification usage, a small secondary gate in a wall or castle.
+That fits this project pretty literally: it gives tools a deliberate side
+entrance into a live Pharo image without making the GUI the only way in.
+
 ## The live image model
 
 Most language environments store code as files. An agent editing Python, Go, or
@@ -202,8 +227,9 @@ Metacello new
 | `PosternServer startPublicOn: 8422` | all interfaces | required |
 
 There is no unauthenticated public mode. When auth is enabled, `/repl` requires an
-`X-Eval-Token` header; the token is written to `.tmp/eval-token`. `/health` and
-`/help` are always unauthenticated.
+`X-Eval-Token` header; the token is written to `.tmp/eval-token`, and clients
+should read that file and send the header explicitly. `/health` and `/help` are
+always unauthenticated.
 
 **Line endings:** send LF. The server converts to CR before passing to the Pharo
 compiler. `/help` responses use LF.
