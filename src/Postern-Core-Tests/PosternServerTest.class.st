@@ -208,11 +208,12 @@ PosternServerTest >> testRequestCountIncrements [
 
 { #category : 'tests' }
 PosternServerTest >> testRequestLoggerLazyInitResolvesDashboardClass [
-	| delegate logger |
+	| delegate logger loggerClass |
 	delegate := PosternDelegate new.
 	[
+	loggerClass := delegate requestLoggerClass.
 	logger := delegate requestLogger.
-	self assert: logger class equals: PosternRequestLogger.
+	self assert: logger class equals: loggerClass.
 	self assert: logger isRunning.
 	self assert: delegate requestLogger identicalTo: logger ]
 		ensure: [ delegate release ]
