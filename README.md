@@ -3,7 +3,8 @@
 > Drive a live Pharo image over HTTP from a coding agent or shell.
 
 [![License](https://img.shields.io/github/license/punt-labs/postern)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/docs.yml?label=CI)](https://github.com/punt-labs/postern/actions/workflows/docs.yml)
+[![Lint](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/lint.yml?label=Lint)](https://github.com/punt-labs/postern/actions/workflows/lint.yml)
+[![Docs](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/docs.yml?label=Docs)](https://github.com/punt-labs/postern/actions/workflows/docs.yml)
 [![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 
 Postern exposes a running Pharo image as an HTTP server. Clients send
