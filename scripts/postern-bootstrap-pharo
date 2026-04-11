@@ -127,7 +127,7 @@ case "$OS_NAME" in
     fi
     VM_UI_REL=${VM_UI_REL#"$IMAGE_DIR"/}
     VM_UI_REL=${VM_UI_REL}/Contents/MacOS/Pharo
-    HEADLESS_FLAG=--headless
+    HEADLESS_FLAGS="--headless"
     ;;
   Linux)
     VM_UI_REL=pharo-vm/pharo
@@ -135,8 +135,9 @@ case "$OS_NAME" in
       printf '%s\n' "downloaded VM archive did not contain a runnable pharo binary" >&2
       exit 1
     fi
-    # The current Pharo VM accepts --vm-display-null for Linux headless CI sessions.
-    HEADLESS_FLAG=--vm-display-null
+    # Force truly headless startup on Linux regardless of whether the downloaded
+    # VM build defaults to headless or interactive mode.
+    HEADLESS_FLAGS="--headless --vm-display-null"
     ;;
   Windows)
     VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" \( -name Pharo.exe -o -name PharoConsole.exe \) | head -n 1)
@@ -145,7 +146,7 @@ case "$OS_NAME" in
       exit 1
     fi
     VM_UI_REL=${VM_UI_REL#"$IMAGE_DIR"/}
-    HEADLESS_FLAG=--headless
+    HEADLESS_FLAGS="--headless"
     ;;
 esac
 
@@ -154,7 +155,7 @@ cat >"$IMAGE_DIR/pharo" <<EOF
 set -euo pipefail
 DIR=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
 set -f
-exec "\$DIR/$VM_UI_REL" $HEADLESS_FLAG "\$@"
+exec "\$DIR/$VM_UI_REL" $HEADLESS_FLAGS "\$@"
 EOF
 chmod +x "$IMAGE_DIR/pharo"
 
