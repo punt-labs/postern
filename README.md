@@ -59,10 +59,10 @@ $ curl -s http://localhost:8422/health
 ok
 
 $ make status
-alive -- 21 Postern classes loaded
+alive -- <class-count> Postern classes loaded
 
 $ make test
-Tests: 86  Passed: 86  Failures: 0  Errors: 0
+Tests: <run-count>  Passed: <pass-count>  Failures: 0  Errors: 0
 ```
 
 ![Postern Dashboard showing live `/repl` activity, including the test run driven through Postern](docs/images/postern-dashboard.png)
