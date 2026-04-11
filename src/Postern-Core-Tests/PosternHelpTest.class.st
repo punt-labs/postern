@@ -329,9 +329,9 @@ PosternHelpTest >> testSectionForReturnsNilForUnknownSection [
 
 { #category : 'tests' }
 PosternHelpTest >> testSectionForReturnsStringForKnownSection [
-	"All 9 sections return non-trivial Markdown content."
+	"All documented sections return non-trivial Markdown content."
 	| sections |
-	sections := #( 'api' 'makefile' 'pharo' 'lint' 'dispatch' 'git' 'testing' 'safety' 'lessons' ).
+	sections := #( 'api' 'browse' 'makefile' 'pharo' 'lint' 'dispatch' 'git' 'testing' 'safety' 'lessons' ).
 	sections do: [ :name |
 		| content |
 		content := PosternHelp sectionFor: name.
@@ -347,7 +347,21 @@ PosternHelpTest >> testTableOfContentsReturnsMarkdown [
 	self assert: toc isString.
 	self assert: (toc includesSubstring: '# Postern /help').
 	self assert: (toc includesSubstring: '## Sections').
-	self assert: (toc includesSubstring: '/help/api')
+	self assert: (toc includesSubstring: '/help/api').
+	self assert: (toc includesSubstring: '/help/browse')
+]
+
+{ #category : 'tests' }
+PosternHelpTest >> testTableOfContentsMentionsEverySectionTableRoute [
+	| toc |
+	toc := PosternHelp tableOfContents.
+	PosternHelp sectionTable keysAndValuesDo: [ :segment :ignored |
+		self
+			assert: (toc includesSubstring: '/help/', segment)
+			description: (String streamContents: [ :s |
+				s nextPutAll: 'Missing /help/'.
+				s nextPutAll: segment.
+				s nextPutAll: ' in tableOfContents' ]) ]
 ]
 
 { #category : 'private' }
