@@ -79,6 +79,7 @@ fi
 FILES_URL=https://files.pharo.org/get-files/$PHARO_VERSION
 IMAGE_URL=$FILES_URL/pharoImage-$IMAGE_ARCH.zip
 VM_URL=$FILES_URL/pharo-vm-$OS_NAME-$VM_ARCH-$VM_CHANNEL.zip
+mkdir -p "$IMAGE_DIR"
 TMP_DIR=$(mktemp -d "$IMAGE_DIR/bootstrap.XXXXXX")
 
 cleanup() {
@@ -113,8 +114,9 @@ mv -f "$PHARO_SOURCES" "$IMAGE_DIR/$(basename "$PHARO_SOURCES")"
 echo "Downloading the latest pharoVM:"
 echo "    $VM_URL"
 download_to "$VM_URL" "$VM_ZIP"
+rm -rf "$IMAGE_DIR/pharo-vm"
 mkdir -p "$IMAGE_DIR/pharo-vm"
-unzip -q "$VM_ZIP" -d "$IMAGE_DIR/pharo-vm"
+unzip -oq "$VM_ZIP" -d "$IMAGE_DIR/pharo-vm"
 
 case "$OS_NAME" in
   Darwin)
