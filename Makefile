@@ -19,15 +19,15 @@
 #   make eval       — interactive Smalltalk eval
 #   make test       — run Postern tests
 #   make status     — health check
-#   make lint       — lint all Postern classes
+#   make shellcheck — shellcheck repo scripts
+#   make lint       — shellcheck repo scripts + lint all Postern classes
 #   make check      — verify all packages loaded + Iceberg working copy clean
 #   make transcript — read Pharo Transcript
 
 PHARO_VERSION := 120
 PORT := 8422
 IMAGE_DIR := $(CURDIR)/pharo
-BOOTSTRAP_URL := https://get.pharo.org/64/$(PHARO_VERSION)+vm
-BOOTSTRAP_SCRIPT := $(IMAGE_DIR)/bootstrap-pharo.sh
+BOOTSTRAP := $(CURDIR)/scripts/postern-bootstrap-pharo
 SETUP_STAMP := $(IMAGE_DIR)/.postern-setup
 IMAGE := $(IMAGE_DIR)/Pharo.image
 CHANGES := $(IMAGE_DIR)/Pharo.changes
@@ -43,6 +43,7 @@ HEALTH_URL := http://localhost:$(PORT)/health
 CURL := curl -s -X POST $(URL) -H "Content-Type: text/plain"
 HEALTHCHECK := curl -fsS $(HEALTH_URL)
 SERVER_PATTERN := $(IMAGE) eval --no-quit PosternServer startOn: $(PORT)
+SHELL_SCRIPTS := $(sort $(wildcard $(CURDIR)/scripts/*))
 OS := $(shell uname -s)
 ifeq ($(OS),Darwin)
 VM_UI := $(IMAGE_DIR)/pharo-vm/Pharo.app/Contents/MacOS/Pharo
@@ -56,7 +57,7 @@ MAKEFLAGS += --no-print-directory
 # Load order: production packages in dependency order, then test packages.
 LOAD_PACKAGES_EXPR := | dir allPkgs priority sorted lfCount | dir := '$(SRC_DIR)' asFileReference. IceRepository registry detect: [ :r | r name = 'postern' ] ifNone: [ | r | r := IceRepositoryCreator new location: '$(CURDIR)' asFileReference; createRepository. r register. r ]. allPkgs := (dir children select: [ :d | d isDirectory and: [ (d / 'package.st') exists ] ]) collect: [ :d | d basename ]. priority := Dictionary new. priority at: 'Postern-Core' put: 10. priority at: 'Postern-Dashboard' put: 15. priority at: 'Postern-IcebergExtensions' put: 15. priority at: 'BaselineOfPostern' put: 20. sorted := allPkgs sorted: [ :a :b | | pa pb | pa := (a endsWith: '-Tests') ifTrue: [ 100 ] ifFalse: [ priority at: a ifAbsent: [ 50 ] ]. pb := (b endsWith: '-Tests') ifTrue: [ 100 ] ifFalse: [ priority at: b ifAbsent: [ 50 ] ]. pa = pb ifTrue: [ a < b ] ifFalse: [ pa < pb ] ]. sorted do: [ :name | | reader version | Transcript show: 'Loading package: ', name; cr. reader := TonelReader on: dir fileName: name. version := reader version. MCPackageLoader installSnapshot: version snapshot ]. lfCount := 0. Smalltalk globals allClasses do: [ :cls | (cls package name beginsWith: 'Postern') ifTrue: [ (cls methods, cls class methods) do: [ :m | | src | src := m sourceCode. (src includesSubstring: String lf) ifTrue: [ cls compile: (src copyReplaceAll: String lf with: String cr) classified: m protocolName. lfCount := lfCount + 1 ] ] ] ]. 'Loaded ', sorted size printString, ' packages, normalized ', lfCount printString, ' methods'
 
-.PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval test status lint check check-packages transcript clean clean-image
+.PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval test status shellcheck lint check check-packages transcript clean clean-image
 
 # ── Setup ──────────────────────────────────────────────
 
@@ -75,7 +76,8 @@ help:
 		"  make filein       Reload Tonel packages into the running image" \
 		"  make eval         Send Smalltalk from stdin to the eval server" \
 		"  make test         Run all Postern tests" \
-		"  make lint         Run Renraku lint on Postern classes" \
+		"  make shellcheck   Run shellcheck on repo scripts" \
+		"  make lint         Run shellcheck and Renraku lint" \
 		"  make status       Check the eval server and loaded class count" \
 		"  make check        Verify packages are loaded and Iceberg is clean" \
 		"  make transcript   Print the Pharo Transcript" \
@@ -91,11 +93,8 @@ bootstrap: | $(IMAGE_DIR)
 	else \
 		echo ">> Downloading Pharo $(PHARO_VERSION)..."; \
 		rm -rf $(IMAGE_DIR)/pharo-vm $(IMAGE_DIR)/pharo-local; \
-		rm -f $(VM) $(IMAGE) $(CHANGES) $(IMAGE_DIR)/Pharo*.sources; \
-		rm -f $(BOOTSTRAP_SCRIPT); \
-		curl -fsSL $(BOOTSTRAP_URL) -o $(BOOTSTRAP_SCRIPT); \
-		cd $(IMAGE_DIR) && bash ./$(notdir $(BOOTSTRAP_SCRIPT)); \
-		rm -f $(BOOTSTRAP_SCRIPT); \
+		rm -f $(VM) $(IMAGE_DIR)/pharo-ui $(IMAGE) $(CHANGES) $(IMAGE_DIR)/Pharo*.sources; \
+		$(BOOTSTRAP) $(IMAGE_DIR) $(PHARO_VERSION); \
 	fi
 	@test -x $(VM)
 	@test -x $(VM_UI)
@@ -314,7 +313,16 @@ status:
 		'alive -- ', classes size printString, ' Postern classes loaded'" \
 		&& echo "" || echo "Not responding on port $(PORT)."
 
-lint:
+shellcheck:
+	@command -v shellcheck >/dev/null 2>&1 || { \
+		echo "  FAIL shellcheck not found. Install it with 'brew install shellcheck' or 'apt-get install shellcheck'."; \
+		exit 1; \
+	}
+	@echo ">> Running shellcheck..."
+	@shellcheck $(SHELL_SCRIPTS)
+	@echo "  ok Shell scripts clean"
+
+lint: shellcheck
 	@echo ">> Linting Postern classes..."
 	@$(CURL) -d \
 		"| classes results | \
@@ -380,8 +388,8 @@ transcript:
 # ── Clean ──────────────────────────────────────────────
 
 clean-image:
-	rm -f $(IMAGE) $(CHANGES) $(PID_FILE) $(LOG_FILE)
-	rm -f $(BOOTSTRAP_SCRIPT) $(SETUP_STAMP)
+	rm -f $(IMAGE) $(CHANGES) $(VM) $(IMAGE_DIR)/pharo-ui $(PID_FILE) $(LOG_FILE)
+	rm -f $(SETUP_STAMP)
 	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log
 	rm -rf $(PHARO_RUNTIME_HOME)

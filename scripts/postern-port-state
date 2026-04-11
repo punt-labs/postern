@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-set -eu
+set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "usage: $0 PORT {in-use|hint}" >&2
+if [[ "$#" -ne 2 ]]; then
+  printf '%s\n' "usage: $0 PORT {in-use|hint}" >&2
   exit 64
 fi
 
@@ -31,18 +31,18 @@ listener_pids() {
 print_hint() {
   pids=$(listener_pids)
 
-  if [ -n "$pids" ]; then
+  if [[ -n "$pids" ]]; then
     for pid in $pids; do
       case "$pid" in
         ''|*[!0-9]*)
           continue
           ;;
       esac
-      echo "       Listener PID $pid"
+      printf '%s\n' "       Listener PID $pid"
       ps -p "$pid" -o command= 2>/dev/null || true
     done
   else
-    echo "       Another process may be holding port $PORT."
+    printf '%s\n' "       Another process may be holding port $PORT."
   fi
 }
 
@@ -54,7 +54,7 @@ case "$MODE" in
     print_hint
     ;;
   *)
-    echo "unknown mode: $MODE" >&2
+    printf '%s\n' "unknown mode: $MODE" >&2
     exit 64
     ;;
 esac
