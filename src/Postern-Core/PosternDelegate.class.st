@@ -189,10 +189,22 @@ PosternDelegate >> requestLogger [
 	that each dashboard only shows traffic for its own server.
 	See COE 2026-04-06 round 7."
 	^ requestLogger ifNil: [
-		requestLogger := PosternRequestLogger new.
+		requestLogger := self requestLoggerClass new.
 		requestLogger server: server.
 		requestLogger start.
 		requestLogger ]
+]
+
+{ #category : 'accessing' }
+PosternDelegate >> requestLoggerClass [
+	"Resolve the dashboard logger lazily so Postern-Core can load
+	before Postern-Dashboard without introducing an Undeclared class
+	reference during bootstrap."
+	^ self class environment
+		at: #PosternRequestLogger
+		ifAbsent: [
+			self error:
+				'Postern-Dashboard is not loaded; PosternRequestLogger is unavailable' ]
 ]
 
 { #category : 'accessing' }
