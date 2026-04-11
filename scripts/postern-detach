@@ -132,6 +132,8 @@ log_fd = os.open(log_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
 os.dup2(devnull, 0)
 os.dup2(log_fd, 1)
 os.dup2(log_fd, 2)
+os.close(devnull)
+os.close(log_fd)
 
 with open(pid_file, "w", encoding="ascii") as pid_fh:
     pid_fh.write(f"{os.getpid()}\n")
