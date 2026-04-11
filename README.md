@@ -12,7 +12,7 @@ drive compile, test, inspect, and commit loops without going through the
 Pharo GUI. It is intended for local development, CI, and agent-driven
 workflows where the image itself is the runtime.
 
-**Platforms:** macOS, Linux (Pharo 12)
+**Platforms:** macOS, Linux (`x86_64`, `arm64`/`aarch64`) (Pharo 12)
 
 ## Quick Start
 
@@ -23,6 +23,9 @@ make
 make setup
 make start
 ```
+
+`make setup` downloads the matching Pharo image and VM for the current
+host.
 
 On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
 `make start-headless`.

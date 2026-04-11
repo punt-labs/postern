@@ -26,8 +26,7 @@
 PHARO_VERSION := 120
 PORT := 8422
 IMAGE_DIR := $(CURDIR)/pharo
-BOOTSTRAP_URL := https://get.pharo.org/64/$(PHARO_VERSION)+vm
-BOOTSTRAP_SCRIPT := $(IMAGE_DIR)/bootstrap-pharo.sh
+BOOTSTRAP := $(CURDIR)/scripts/postern-bootstrap-pharo
 SETUP_STAMP := $(IMAGE_DIR)/.postern-setup
 IMAGE := $(IMAGE_DIR)/Pharo.image
 CHANGES := $(IMAGE_DIR)/Pharo.changes
@@ -91,11 +90,8 @@ bootstrap: | $(IMAGE_DIR)
 	else \
 		echo ">> Downloading Pharo $(PHARO_VERSION)..."; \
 		rm -rf $(IMAGE_DIR)/pharo-vm $(IMAGE_DIR)/pharo-local; \
-		rm -f $(VM) $(IMAGE) $(CHANGES) $(IMAGE_DIR)/Pharo*.sources; \
-		rm -f $(BOOTSTRAP_SCRIPT); \
-		curl -fsSL $(BOOTSTRAP_URL) -o $(BOOTSTRAP_SCRIPT); \
-		cd $(IMAGE_DIR) && bash ./$(notdir $(BOOTSTRAP_SCRIPT)); \
-		rm -f $(BOOTSTRAP_SCRIPT); \
+		rm -f $(VM) $(IMAGE_DIR)/pharo-ui $(IMAGE) $(CHANGES) $(IMAGE_DIR)/Pharo*.sources; \
+		$(BOOTSTRAP) $(IMAGE_DIR) $(PHARO_VERSION); \
 	fi
 	@test -x $(VM)
 	@test -x $(VM_UI)
@@ -380,8 +376,8 @@ transcript:
 # ── Clean ──────────────────────────────────────────────
 
 clean-image:
-	rm -f $(IMAGE) $(CHANGES) $(PID_FILE) $(LOG_FILE)
-	rm -f $(BOOTSTRAP_SCRIPT) $(SETUP_STAMP)
+	rm -f $(IMAGE) $(CHANGES) $(VM) $(IMAGE_DIR)/pharo-ui $(PID_FILE) $(LOG_FILE)
+	rm -f $(SETUP_STAMP)
 	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log
 	rm -rf $(PHARO_RUNTIME_HOME)
