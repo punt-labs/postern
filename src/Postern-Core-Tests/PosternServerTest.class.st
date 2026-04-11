@@ -207,6 +207,19 @@ PosternServerTest >> testRequestCountIncrements [
 ]
 
 { #category : 'tests' }
+PosternServerTest >> testRequestLoggerLazyInitResolvesDashboardClass [
+	| delegate logger loggerClass |
+	delegate := PosternDelegate new.
+	[
+	loggerClass := delegate requestLoggerClass.
+	logger := delegate requestLogger.
+	self assert: logger class equals: loggerClass.
+	self assert: logger isRunning.
+	self assert: delegate requestLogger identicalTo: logger ]
+		ensure: [ delegate release ]
+]
+
+{ #category : 'tests' }
 PosternServerTest >> testStartOnBindsToLoopback [
 	"startOn: must bind to loopback only."
 	| server |
