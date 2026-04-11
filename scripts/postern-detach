@@ -18,6 +18,10 @@ SCRIPT_DIR=$(
   pwd
 )
 WITH_RUNTIME_HOME="${SCRIPT_DIR}/postern-with-runtime-home"
+if [[ ! -x "$WITH_RUNTIME_HOME" ]]; then
+  printf '%s\n' "error: required helper is missing or not executable: $WITH_RUNTIME_HOME" >&2
+  exit 1
+fi
 
 if command -v perl >/dev/null 2>&1; then
   exec perl -MPOSIX=setsid -e '

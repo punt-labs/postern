@@ -7,11 +7,12 @@ if [[ "$#" -lt 2 ]]; then
   exit 64
 fi
 
+OS_NAME=$(uname -s 2>/dev/null || echo unknown)
 RUNTIME_HOME=$1
 shift
 
 PREF_DIR=
-case "$(uname -s 2>/dev/null || echo unknown)" in
+case "$OS_NAME" in
   Darwin)
     PREF_DIR=${HOME:-}/Library/Preferences/pharo
     ;;
@@ -27,6 +28,8 @@ esac
 USE_FALLBACK_HOME=0
 if [[ -z "$PREF_DIR" ]]; then
   USE_FALLBACK_HOME=1
+elif [[ -e "$PREF_DIR" && ! -d "$PREF_DIR" ]]; then
+  USE_FALLBACK_HOME=1
 elif [[ -d "$PREF_DIR" ]]; then
   [[ -w "$PREF_DIR" ]] || USE_FALLBACK_HOME=1
 else
@@ -41,7 +44,14 @@ if [[ "$USE_FALLBACK_HOME" -eq 1 ]]; then
   export HOME="$RUNTIME_HOME"
   export XDG_CONFIG_HOME="${RUNTIME_HOME}/.config"
   export XDG_DATA_HOME="${RUNTIME_HOME}/.local/share"
-  mkdir -p "$HOME/Library/Preferences/pharo" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+  case "$OS_NAME" in
+    Darwin)
+      mkdir -p "$HOME/Library/Preferences/pharo" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+      ;;
+    *)
+      mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+      ;;
+  esac
 fi
 
 exec "$@"

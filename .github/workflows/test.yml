@@ -10,6 +10,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PORT: 8422
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -20,7 +22,7 @@ jobs:
         run: make start-headless
       - name: Health Check
         run: |
-          curl -fsS http://localhost:8422/health
+          curl -fsS "http://localhost:${PORT}/health"
           make status
       - name: Run Smalltalk tests
         run: make test
