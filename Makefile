@@ -215,8 +215,8 @@ test:
 		suite := TestSuite new. \
 		(Smalltalk globals allClasses select: [ :c | \
 			(c includesBehavior: TestCase) and: [ \
-				c package name endsWith: '-Tests' ] and: [ \
-				c package name beginsWith: 'Postern-' ] ]) \
+				(c package name endsWith: '-Tests') and: [ \
+					c package name beginsWith: 'Postern-' ] ] ]) \
 			do: [ :cls | suite addTests: cls buildSuite tests ]. \
 		suite tests ifEmpty: [ 'No test classes found' ] \
 			ifNotEmpty: [ \
