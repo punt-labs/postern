@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-set -eu
+set -euo pipefail
 
-if [ "$#" -lt 4 ]; then
-  echo "usage: $0 PID_FILE LOG_FILE RUNTIME_HOME CMD [ARG...]" >&2
+if [[ "$#" -lt 4 ]]; then
+  printf '%s\n' "usage: $0 PID_FILE LOG_FILE RUNTIME_HOME CMD [ARG...]" >&2
   exit 64
 fi
 
@@ -27,22 +27,22 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
 esac
 
 USE_FALLBACK_HOME=0
-if [ -z "$PREF_DIR" ]; then
+if [[ -z "$PREF_DIR" ]]; then
   USE_FALLBACK_HOME=1
-elif [ -d "$PREF_DIR" ]; then
-  [ -w "$PREF_DIR" ] || USE_FALLBACK_HOME=1
+elif [[ -d "$PREF_DIR" ]]; then
+  [[ -w "$PREF_DIR" ]] || USE_FALLBACK_HOME=1
 else
   PARENT_DIR=$PREF_DIR
-  while [ ! -e "$PARENT_DIR" ] && [ "$PARENT_DIR" != "/" ]; do
+  while [[ ! -e "$PARENT_DIR" && "$PARENT_DIR" != "/" ]]; do
     PARENT_DIR=$(dirname "$PARENT_DIR")
   done
-  [ -w "$PARENT_DIR" ] || USE_FALLBACK_HOME=1
+  [[ -w "$PARENT_DIR" ]] || USE_FALLBACK_HOME=1
 fi
 
-if [ "$USE_FALLBACK_HOME" -eq 1 ]; then
-  export HOME=$RUNTIME_HOME
-  export XDG_CONFIG_HOME=$RUNTIME_HOME/.config
-  export XDG_DATA_HOME=$RUNTIME_HOME/.local/share
+if [[ "$USE_FALLBACK_HOME" -eq 1 ]]; then
+  export HOME="$RUNTIME_HOME"
+  export XDG_CONFIG_HOME="${RUNTIME_HOME}/.config"
+  export XDG_DATA_HOME="${RUNTIME_HOME}/.local/share"
   mkdir -p "$HOME/Library/Preferences/pharo" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
 fi
 

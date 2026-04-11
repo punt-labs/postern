@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-set -eu
+set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "usage: $0 IMAGE_DIR PHARO_VERSION" >&2
+if [[ "$#" -ne 2 ]]; then
+  printf '%s\n' "usage: $0 IMAGE_DIR PHARO_VERSION" >&2
   exit 64
 fi
 
@@ -19,12 +19,12 @@ elif command -v wget >/dev/null 2>&1; then
     wget -q -O "$2" "$1"
   }
 else
-  echo "curl or wget is required to bootstrap Pharo" >&2
+  printf '%s\n' "curl or wget is required to bootstrap Pharo" >&2
   exit 1
 fi
 
 if ! command -v unzip >/dev/null 2>&1; then
-  echo "unzip is required to bootstrap Pharo" >&2
+  printf '%s\n' "unzip is required to bootstrap Pharo" >&2
   exit 1
 fi
 
@@ -42,7 +42,7 @@ case "$UNAME_S" in
     OS_NAME=Windows
     ;;
   *)
-    echo "unsupported OS: $UNAME_S" >&2
+    printf '%s\n' "unsupported OS: $UNAME_S" >&2
     exit 1
     ;;
 esac
@@ -65,22 +65,22 @@ case "$UNAME_M" in
     VM_ARCH=aarch64
     ;;
   *)
-    echo "unsupported architecture: $UNAME_M" >&2
+    printf '%s\n' "unsupported architecture: $UNAME_M" >&2
     exit 1
     ;;
 esac
 
 VM_CHANNEL=stable
-if [ "$OS_NAME" = "Linux" ] && [ "$VM_ARCH" = "aarch64" ]; then
+if [[ "$OS_NAME" == "Linux" && "$VM_ARCH" == "aarch64" ]]; then
   # Pharo currently publishes Linux ARM64 VMs only as "latest", not "stable".
   VM_CHANNEL=latest
 fi
 
-FILES_URL=https://files.pharo.org/get-files/$PHARO_VERSION
-IMAGE_URL=$FILES_URL/pharoImage-$IMAGE_ARCH.zip
-VM_URL=$FILES_URL/pharo-vm-$OS_NAME-$VM_ARCH-$VM_CHANNEL.zip
+FILES_URL=https://files.pharo.org/get-files/${PHARO_VERSION}
+IMAGE_URL=${FILES_URL}/pharoImage-${IMAGE_ARCH}.zip
+VM_URL=${FILES_URL}/pharo-vm-${OS_NAME}-${VM_ARCH}-${VM_CHANNEL}.zip
 mkdir -p "$IMAGE_DIR"
-TMP_DIR=$(mktemp -d "$IMAGE_DIR/bootstrap.XXXXXX")
+TMP_DIR=$(mktemp -d "${IMAGE_DIR}/bootstrap.XXXXXX")
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -93,8 +93,8 @@ IMAGE_UNZIP_DIR=$TMP_DIR/image
 
 mkdir -p "$IMAGE_DIR" "$IMAGE_UNZIP_DIR"
 
-echo "Downloading the latest $PHARO_VERSION Image:"
-echo "    $IMAGE_URL"
+printf '%s\n' "Downloading the latest ${PHARO_VERSION} Image:"
+printf '%s\n' "    ${IMAGE_URL}"
 download_to "$IMAGE_URL" "$IMAGE_ZIP"
 unzip -q "$IMAGE_ZIP" -d "$IMAGE_UNZIP_DIR"
 
@@ -102,8 +102,8 @@ PHARO_IMAGE=$(find "$IMAGE_UNZIP_DIR" -name '*.image' | head -n 1)
 PHARO_CHANGES=$(find "$IMAGE_UNZIP_DIR" -name '*.changes' | head -n 1)
 PHARO_SOURCES=$(find "$IMAGE_UNZIP_DIR" -name '*.sources' | head -n 1)
 
-if [ -z "$PHARO_IMAGE" ] || [ -z "$PHARO_CHANGES" ] || [ -z "$PHARO_SOURCES" ]; then
-  echo "downloaded image archive did not contain the expected Pharo files" >&2
+if [[ -z "$PHARO_IMAGE" || -z "$PHARO_CHANGES" || -z "$PHARO_SOURCES" ]]; then
+  printf '%s\n' "downloaded image archive did not contain the expected Pharo files" >&2
   exit 1
 fi
 
@@ -111,8 +111,8 @@ mv -f "$PHARO_IMAGE" "$IMAGE_DIR/Pharo.image"
 mv -f "$PHARO_CHANGES" "$IMAGE_DIR/Pharo.changes"
 mv -f "$PHARO_SOURCES" "$IMAGE_DIR/$(basename "$PHARO_SOURCES")"
 
-echo "Downloading the latest pharoVM:"
-echo "    $VM_URL"
+printf '%s\n' "Downloading the latest pharoVM:"
+printf '%s\n' "    ${VM_URL}"
 download_to "$VM_URL" "$VM_ZIP"
 rm -rf "$IMAGE_DIR/pharo-vm"
 mkdir -p "$IMAGE_DIR/pharo-vm"
@@ -121,26 +121,26 @@ unzip -oq "$VM_ZIP" -d "$IMAGE_DIR/pharo-vm"
 case "$OS_NAME" in
   Darwin)
     VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" -name Pharo.app -type d | head -n 1)
-    if [ -z "$VM_UI_REL" ]; then
-      echo "downloaded VM archive did not contain Pharo.app" >&2
+    if [[ -z "$VM_UI_REL" ]]; then
+      printf '%s\n' "downloaded VM archive did not contain Pharo.app" >&2
       exit 1
     fi
     VM_UI_REL=${VM_UI_REL#"$IMAGE_DIR"/}
-    VM_UI_REL=$VM_UI_REL/Contents/MacOS/Pharo
+    VM_UI_REL=${VM_UI_REL}/Contents/MacOS/Pharo
     HEADLESS_FLAG=--headless
     ;;
   Linux)
     VM_UI_REL=pharo-vm/pharo
-    if [ ! -x "$IMAGE_DIR/$VM_UI_REL" ]; then
-      echo "downloaded VM archive did not contain a runnable pharo binary" >&2
+    if [[ ! -x "$IMAGE_DIR/$VM_UI_REL" ]]; then
+      printf '%s\n' "downloaded VM archive did not contain a runnable pharo binary" >&2
       exit 1
     fi
     HEADLESS_FLAG=--nodisplay
     ;;
   Windows)
-    VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" -name Pharo.exe -o -name PharoConsole.exe | head -n 1)
-    if [ -z "$VM_UI_REL" ]; then
-      echo "downloaded VM archive did not contain a runnable Pharo executable" >&2
+    VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" \( -name Pharo.exe -o -name PharoConsole.exe \) | head -n 1)
+    if [[ -z "$VM_UI_REL" ]]; then
+      printf '%s\n' "downloaded VM archive did not contain a runnable Pharo executable" >&2
       exit 1
     fi
     VM_UI_REL=${VM_UI_REL#"$IMAGE_DIR"/}
@@ -149,8 +149,8 @@ case "$OS_NAME" in
 esac
 
 cat >"$IMAGE_DIR/pharo" <<EOF
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 DIR=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
 set -f
 exec "\$DIR/$VM_UI_REL" $HEADLESS_FLAG "\$@"
@@ -158,12 +158,12 @@ EOF
 chmod +x "$IMAGE_DIR/pharo"
 
 cat >"$IMAGE_DIR/pharo-ui" <<EOF
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 DIR=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
 set -f
 exec "\$DIR/$VM_UI_REL" "\$@"
 EOF
 chmod +x "$IMAGE_DIR/pharo-ui"
 
-echo "$IMAGE_DIR/pharo"
+printf '%s\n' "$IMAGE_DIR/pharo"
