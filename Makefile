@@ -35,6 +35,7 @@ VM := $(IMAGE_DIR)/pharo
 PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
 DETACH := $(CURDIR)/scripts/postern-detach
+WITH_RUNTIME_HOME := $(CURDIR)/scripts/postern-with-runtime-home
 PORT_STATE := $(CURDIR)/scripts/postern-port-state
 PHARO_RUNTIME_HOME := $(CURDIR)/.tmp/pharo-home
 SRC_DIR := $(CURDIR)/src
@@ -107,9 +108,10 @@ $(VM) $(VM_UI) $(IMAGE) $(CHANGES): | $(IMAGE_DIR)
 
 setup: $(SETUP_STAMP)
 
-$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES)
+$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME)
 	@echo ">> Loading Tonel packages into image..."
-	$(VM) $(IMAGE) eval --save "$(LOAD_PACKAGES_EXPR)"
+	$(WITH_RUNTIME_HOME) $(PHARO_RUNTIME_HOME) \
+		$(VM) $(IMAGE) eval --save "$(LOAD_PACKAGES_EXPR)"
 	@touch $(SETUP_STAMP)
 	@echo "  ok All packages loaded and image saved"
 

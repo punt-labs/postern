@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ "$#" -lt 2 ]]; then
+  printf '%s\n' "usage: $0 RUNTIME_HOME CMD [ARG...]" >&2
+  exit 64
+fi
+
+RUNTIME_HOME=$1
+shift
+
+PREF_DIR=
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  Darwin)
+    PREF_DIR=${HOME:-}/Library/Preferences/pharo
+    ;;
+  *)
+    if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+      PREF_DIR=${XDG_CONFIG_HOME}/pharo
+    elif [ -n "${HOME:-}" ]; then
+      PREF_DIR=${HOME}/.config/pharo
+    fi
+    ;;
+esac
+
+USE_FALLBACK_HOME=0
+if [[ -z "$PREF_DIR" ]]; then
+  USE_FALLBACK_HOME=1
+elif [[ -d "$PREF_DIR" ]]; then
+  [[ -w "$PREF_DIR" ]] || USE_FALLBACK_HOME=1
+else
+  PARENT_DIR=$PREF_DIR
+  while [[ ! -e "$PARENT_DIR" && "$PARENT_DIR" != "/" ]]; do
+    PARENT_DIR=$(dirname "$PARENT_DIR")
+  done
+  [[ -w "$PARENT_DIR" ]] || USE_FALLBACK_HOME=1
+fi
+
+if [[ "$USE_FALLBACK_HOME" -eq 1 ]]; then
+  export HOME="$RUNTIME_HOME"
+  export XDG_CONFIG_HOME="${RUNTIME_HOME}/.config"
+  export XDG_DATA_HOME="${RUNTIME_HOME}/.local/share"
+  mkdir -p "$HOME/Library/Preferences/pharo" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
+fi
+
+exec "$@"

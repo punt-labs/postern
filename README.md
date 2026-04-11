@@ -4,6 +4,7 @@
 
 [![License](https://img.shields.io/github/license/punt-labs/postern)](LICENSE)
 [![Lint](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/lint.yml?label=Lint)](https://github.com/punt-labs/postern/actions/workflows/lint.yml)
+[![Test](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/test.yml?label=Test)](https://github.com/punt-labs/postern/actions/workflows/test.yml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/docs.yml?label=Docs)](https://github.com/punt-labs/postern/actions/workflows/docs.yml)
 [![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 
@@ -26,7 +27,9 @@ make start
 ```
 
 `make setup` downloads the matching Pharo image and VM for the current
-host.
+host. If Pharo cannot write to its usual user config directories
+(for example inside a Codex or Claude Code sandbox), Postern falls back
+to a repo-local runtime home under `.tmp/pharo-home`.
 
 On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
 `make start-headless`.
@@ -174,7 +177,9 @@ loaded packages and current conventions instead of a static doc set.
 
 For Codex users, this repo also includes `.codex/config.toml` and
 `codex/rules/default.rules` so localhost help and REPL access can be
-preconfigured after the repo is trusted once.
+preconfigured after the repo is trusted once. `make setup` already
+handles the common sandbox case by falling back to `.tmp/pharo-home`
+when the normal Pharo config directories are not writable.
 
 ## Security
 

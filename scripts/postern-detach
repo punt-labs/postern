@@ -12,46 +12,19 @@ LOG_FILE=$2
 RUNTIME_HOME=$3
 shift 3
 
-PREF_DIR=
-case "$(uname -s 2>/dev/null || echo unknown)" in
-  Darwin)
-    PREF_DIR=${HOME:-}/Library/Preferences/pharo
-    ;;
-  *)
-    if [ -n "${XDG_CONFIG_HOME:-}" ]; then
-      PREF_DIR=${XDG_CONFIG_HOME}/pharo
-    elif [ -n "${HOME:-}" ]; then
-      PREF_DIR=${HOME}/.config/pharo
-    fi
-    ;;
-esac
-
-USE_FALLBACK_HOME=0
-if [[ -z "$PREF_DIR" ]]; then
-  USE_FALLBACK_HOME=1
-elif [[ -d "$PREF_DIR" ]]; then
-  [[ -w "$PREF_DIR" ]] || USE_FALLBACK_HOME=1
-else
-  PARENT_DIR=$PREF_DIR
-  while [[ ! -e "$PARENT_DIR" && "$PARENT_DIR" != "/" ]]; do
-    PARENT_DIR=$(dirname "$PARENT_DIR")
-  done
-  [[ -w "$PARENT_DIR" ]] || USE_FALLBACK_HOME=1
-fi
-
-if [[ "$USE_FALLBACK_HOME" -eq 1 ]]; then
-  export HOME="$RUNTIME_HOME"
-  export XDG_CONFIG_HOME="${RUNTIME_HOME}/.config"
-  export XDG_DATA_HOME="${RUNTIME_HOME}/.local/share"
-  mkdir -p "$HOME/Library/Preferences/pharo" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
-fi
+SCRIPT_DIR=$(
+  unset CDPATH
+  cd -- "$(dirname -- "$0")"
+  pwd
+)
+WITH_RUNTIME_HOME="${SCRIPT_DIR}/postern-with-runtime-home"
 
 if command -v perl >/dev/null 2>&1; then
   exec perl -MPOSIX=setsid -e '
 use strict;
 use warnings;
 
-my ($pid_file, $log_file, @cmd) = @ARGV;
+my ($pid_file, $log_file, $with_runtime_home, $runtime_home, @cmd) = @ARGV;
 
 pipe my $reader, my $writer or die "pipe failed: $!\n";
 
@@ -91,8 +64,8 @@ close $pid_fh or die "close pidfile failed: $!\n";
 print {$writer} "ok\n" or die "notify parent failed: $!\n";
 close $writer or die "close writer failed: $!\n";
 
-exec @cmd or die "exec failed: $!\n";
-' "$PID_FILE" "$LOG_FILE" "$@"
+exec $with_runtime_home, $runtime_home, @cmd or die "exec failed: $!\n";
+' "$PID_FILE" "$LOG_FILE" "$WITH_RUNTIME_HOME" "$RUNTIME_HOME" "$@"
 fi
 
 if command -v python3 >/dev/null 2>&1; then
@@ -100,7 +73,7 @@ if command -v python3 >/dev/null 2>&1; then
 import os
 import sys
 
-pid_file, log_file, *cmd = sys.argv[1:]
+pid_file, log_file, with_runtime_home, runtime_home, *cmd = sys.argv[1:]
 
 rfd, wfd = os.pipe()
 
@@ -141,9 +114,9 @@ with open(pid_file, "w", encoding="ascii") as pid_fh:
 os.write(wfd, b"ok\n")
 os.close(wfd)
 
-os.execvp(cmd[0], cmd)
-' "$PID_FILE" "$LOG_FILE" "$@"
+os.execv(with_runtime_home, [with_runtime_home, runtime_home, *cmd])
+' "$PID_FILE" "$LOG_FILE" "$WITH_RUNTIME_HOME" "$RUNTIME_HOME" "$@"
 fi
 
-nohup "$@" >"$LOG_FILE" 2>&1 </dev/null &
+nohup "$WITH_RUNTIME_HOME" "$RUNTIME_HOME" "$@" >"$LOG_FILE" 2>&1 </dev/null &
 echo $! >"$PID_FILE"

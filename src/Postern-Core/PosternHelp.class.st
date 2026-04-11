@@ -1011,6 +1011,11 @@ load in dependency order using a priority map:
 After loading, the loader normalizes any LF line endings in method
 source to CR (Pharo''s internal convention).
 
+If Pharo cannot write to its usual user config directory during
+`make setup` (for example in a restricted agent sandbox), Postern
+falls back to a repo-local runtime home under `.tmp/pharo-home`.
+`make clean-image` and `make clean` remove that fallback directory.
+
 ## Port
 
 The default port is 8422. It is hardcoded in the Makefile as the
