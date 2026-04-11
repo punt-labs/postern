@@ -57,7 +57,7 @@ arbitrary code running as your user account.
 ## Trivia
 
 The name is intentional: a postern is a back door or gate, a private side
-entrance, or in fortification usage a small secondary gate in a wall or castle.
+entrance, or in fortification usage, a small secondary gate in a wall or castle.
 That fits this project pretty literally: it gives tools a deliberate side
 entrance into a live Pharo image without making the GUI the only way in.
 
@@ -227,8 +227,9 @@ Metacello new
 | `PosternServer startPublicOn: 8422` | all interfaces | required |
 
 There is no unauthenticated public mode. When auth is enabled, `/repl` requires an
-`X-Eval-Token` header; the token is written to `.tmp/eval-token`. `/health` and
-`/help` are always unauthenticated.
+`X-Eval-Token` header; the token is written to `.tmp/eval-token`, and clients
+should read that file and send the header explicitly. `/health` and `/help` are
+always unauthenticated.
 
 **Line endings:** send LF. The server converts to CR before passing to the Pharo
 compiler. `/help` responses use LF.

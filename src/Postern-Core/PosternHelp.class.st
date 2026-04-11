@@ -132,8 +132,9 @@ Auth is optional. When enabled, every `/repl` request must include
 the `X-Eval-Token` header with the correct token. `/health` and
 `/help` are exempt from auth — they work without a token.
 
-The default local startup path (`PosternServer startOn:` or `make start`)
-does **not** enable auth. When auth is enabled, it only checks whether
+The default local startup path (`PosternServer startOn:`, `make start`,
+or `make start-headless`) does **not** enable auth. When auth is enabled,
+it only checks whether
 the caller has the shared token. It does not sandbox evaluation, limit
 what code can do, or provide separate read-only and write permissions.
 Any client that can call `/repl` successfully can run normal Smalltalk
@@ -149,7 +150,9 @@ curl -s -X POST http://localhost:8422/repl \
 
 When the server starts with auth (`PosternServer startOn: 8422
 withAuth: true`), it generates an 8-character hex token and writes
-it to `.tmp/eval-token`. The Makefile reads this file automatically.
+it to `.tmp/eval-token`. Read that file and add the `X-Eval-Token`
+header explicitly in your client requests. The default `make start`
+and `make start-headless` targets do not enable auth.
 
 An unauthenticated request to `/repl` returns HTTP 401.
 
