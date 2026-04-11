@@ -1,16 +1,16 @@
 # Postern
 
-> Drive a live Pharo image from any coding agent or HTTP client — full development cycle, no GUI required.
+> Drive a live Pharo image over HTTP from a coding agent or shell.
 
-[![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 [![License](https://img.shields.io/github/license/punt-labs/postern)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/punt-labs/postern/docs.yml?label=CI)](https://github.com/punt-labs/postern/actions/workflows/docs.yml)
+[![Pharo 12](https://img.shields.io/badge/Pharo-12-%23aac9ff.svg)](https://pharo.org/download)
 
-Pharo is a live programming environment. Compiling a method installs it into the
-running image immediately — no restart, no recompile step. Postern exposes that
-capability over HTTP: a server on `localhost:8422` accepts Smalltalk expressions,
-executes them in the live image, and returns the result. Any outside
-tool — Claude Code, a CI job, a shell script — can drive the full development
-cycle without touching the Pharo GUI.
+Postern exposes a running Pharo image as an HTTP server. Clients send
+Smalltalk expressions to `/repl`, read `/help` from the live image, and
+drive compile, test, inspect, and commit loops without going through the
+Pharo GUI. It is intended for local development, CI, and agent-driven
+workflows where the image itself is the runtime.
 
 **Platforms:** macOS, Linux (Pharo 12)
 
@@ -19,10 +19,9 @@ cycle without touching the Pharo GUI.
 ```bash
 git clone https://github.com/punt-labs/postern.git
 cd postern
-make          # shows available targets
-make setup    # downloads Pharo 12 VM + image, loads all Postern packages
-make start    # starts Postern with the Pharo GUI on macOS and Linux desktop sessions
-# make start-headless  # optional: start without the GUI instead
+make
+make setup
+make start
 ```
 
 On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
@@ -32,164 +31,98 @@ If port `8422` is already in use, override it on the command line, for
 example `make PORT=8432 start-headless`.
 
 ```bash
-curl -s http://localhost:8422/health    # → ok
-curl -s http://localhost:8422/help     # → self-documenting table of contents
+curl -s http://localhost:8422/health
+curl -s http://localhost:8422/help
 ```
 
-## Security Warning
+Before exposing Postern beyond your machine or handing it to an agent,
+read [Security](#security).
 
-Postern accepts Smalltalk code over HTTP and runs it in the live image.
-A client that can successfully call `/repl` can do what normal Smalltalk
-code in that image can do: change classes and methods, inspect objects,
-read and write files, and run shell commands with the OS permissions of
-the user running Pharo.
+## Features
 
-By default, `make start` and `make start-headless` bind to `localhost`
-only and do **not** enable auth. That is intended for local development
-on a trusted machine. If you enable auth, the `X-Eval-Token` is a shared
-secret for `/repl`; it is not a sandbox, permission system, or read-only
-mode. `/help` and `/health` remain unauthenticated even when auth is on.
+- **HTTP REPL** — Evaluate Smalltalk in a live image through `POST /repl`.
+- **Live help from the image** — `/help` documents the loaded packages,
+  conventions, and workflow directly from the running image.
+- **GUI and headless startup** — `make start` launches the Pharo UI and
+  `make start-headless` runs without it.
+- **Dashboard** — `PosternDashboard` shows live request traffic, status,
+  and request and response bodies.
+- **Iceberg sync helper** — Repairs Iceberg reference-commit drift after
+  CLI Git operations.
+- **Optional token auth** — Loopback mode can run without auth; public
+  binding always requires a token.
 
-Do not expose Postern to untrusted networks or untrusted agents. Do not
-run it in an environment containing secrets or data you would not hand to
-arbitrary code running as your user account.
+## What It Looks Like
 
-## Trivia
+```text
+$ curl -s http://localhost:8422/health
+ok
 
-The name is intentional: a postern is a back door or gate, a private side
-entrance, or in fortification usage, a small secondary gate in a wall or castle.
-That fits this project pretty literally: it gives tools a deliberate side
-entrance into a live Pharo image without making the GUI the only way in.
+$ make status
+alive -- <class-count> Postern classes loaded
 
-## The live image model
-
-Most language environments store code as files. An agent editing Python, Go, or
-TypeScript writes to files, a compiler processes them, and the runtime loads the
-result — typically requiring a process restart before new code can execute.
-
-Pharo stores code in a live object graph called an image. Compiling a method
-installs it into that graph immediately. The same session can define a class,
-call a method on it, run its tests, and inspect the live objects it creates —
-all without a restart. Each of those steps happens in the running process.
-
-For agent-driven coding this tightens the loop at every increment. After sending
-a compile request, the agent can call the new method in the next request, observe
-the real runtime result, and branch on it — not on a static type check or a test
-run that spawned a subprocess. When the increment is complete, Iceberg (Pharo's
-git integration) runs inside the same image, so the agent can commit without
-leaving the session.
-
-Postern's role is to make that image accessible to tools that speak HTTP.
-
-## Coding Agents + Pharo
-
-Any coding agent that can make HTTP requests and follow instructions can drive the
-full TDD cycle. The agent sends Smalltalk to `/repl` and reads `/help` to learn the
-image's API, conventions, and safety rules. From there it drives define → compile →
-test → commit without leaving its session. Claude Code, Codex, Cursor, and any
-other agent that speaks HTTP all work the same way.
-
-The `/help` endpoint is the interface contract between an external agent and the
-image. A session that has never seen the image before reads `/help` first and uses
-those ten sections to navigate correctly:
-
-| Section | What it documents |
-|---------|-------------------|
-| `/help/api` | Eval server protocol: endpoints, auth, request/response format |
-| `/help/browse` | Read-only introspection: classes, methods, senders, implementors, source lookup |
-| `/help/pharo` | Pharo 12 standards: fluid class syntax, protocols, JSON pattern |
-| `/help/dispatch` | Sub-agent delegation: TDD cycle, required spec elements, anti-patterns |
-| `/help/lint` | Lint discipline: `make lint` is the gate, not per-method critiques |
-| `/help/git` | Iceberg commits, CLI merges, reference commit sync |
-| `/help/testing` | Scoped test runs, never the full Pharo suite |
-| `/help/safety` | LibC deadlock prevention, image discipline, orphan recovery |
-| `/help/makefile` | Image lifecycle: setup, start, stop, rebuild |
-| `/help/lessons` | Incident record: cascades, process failures, scope safety |
-
-The content is served from the live image at runtime, so it reflects the actual
-loaded packages and the conventions that image was built with — not a static
-documentation site.
-
-For Codex users, this repo also includes `.codex/config.toml` and
-`codex/rules/default.rules` so localhost help/REPL access can be
-preconfigured after the repo is trusted once.
-
-## System in Action
-
-A complete feature cycle — define a class, compile a method, run tests, commit —
-using nothing but HTTP to the server.
-
-```bash
-# Agent reads the image's API and conventions before writing anything
-curl -s http://localhost:8422/help/api
-curl -s http://localhost:8422/help/pharo
+$ make test
+Tests: <run-count>  Passed: <pass-count>  Failures: 0  Errors: 0
 ```
 
-```bash
-# Define a class (Pharo 12 fluid syntax — server converts LF to CR automatically)
-curl -s -X POST http://localhost:8422/repl \
-  -H "Content-Type: text/plain" \
-  -d "(Object << #Counter
-  slots: { #count };
-  package: 'MyPackage') install"
-# → a Counter
+![Postern Dashboard showing live `/repl` activity, including the test run driven through Postern](docs/images/postern-dashboard.png)
+
+*The dashboard after driving Postern through `make test` and related
+`/repl` activity.*
+
+## API
+
+### Eval Server
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/repl` | `POST` | Evaluate Smalltalk from a `text/plain` body and return the `printString` of the result. |
+| `/health` | `GET` | Return `ok`. No auth required. |
+| `/help` | `GET` | Return the table of contents for the live help. No auth required. |
+| `/help/{section}` | `GET` | Return a specific help section: `api`, `browse`, `pharo`, `dispatch`, `lint`, `git`, `testing`, `safety`, `makefile`, or `lessons`. |
+
+#### Binding and Authentication
+
+| Method | Binding | Auth |
+|--------|---------|------|
+| `PosternServer startOn: 8422` | loopback | none |
+| `PosternServer startOn: 8422 withAuth: true` | loopback | required |
+| `PosternServer startPublicOn: 8422` | all interfaces | required |
+
+There is no unauthenticated public mode. When auth is enabled, `/repl`
+requires an `X-Eval-Token` header. The token is written to
+`.tmp/eval-token`, and clients should read that file and send the header
+explicitly. `/health` and `/help` are always unauthenticated.
+
+Send LF line endings in requests. The server converts them to CR before
+passing source to the Pharo compiler. `/help` responses use LF.
+
+### Dashboard
+
+Open from the World menu: **Postern > Dashboard**, or evaluate:
+
+```smalltalk
+PosternDashboard open.
 ```
 
-```bash
-# Compile a method — takes effect in the running image immediately
-curl -s -X POST http://localhost:8422/repl \
-  -H "Content-Type: text/plain" \
-  -d "Counter compile: 'increment
-  count := (count ifNil: [0]) + 1' classified: 'actions'"
-# → a CompiledMethod
+The dashboard shows live traffic per server: method, path, status code,
+duration, and body snippet. The filter field takes keyboard focus on
+open. Multiple windows can monitor different servers simultaneously.
+
+### Iceberg Sync
+
+After CLI Git operations, Iceberg's working copy reference commit can
+drift from filesystem `HEAD`, showing a false dirty state. Fix it from
+the Iceberg browser with **Postern > Sync reference commit**, or
+evaluate:
+
+```smalltalk
+repo workingCopy referenceCommit: repo head commit.
 ```
 
-```bash
-# Run the tests — these exercise the live compiled method
-curl -s -X POST http://localhost:8422/repl \
-  -H "Content-Type: text/plain" \
-  -d "CounterTest buildSuite run"
-# → 3 ran, 3 passed, 0 failures, 0 errors
-```
+## Setup
 
-```bash
-# Lint gate — must be empty before commit
-make lint 2>&1 | grep -v ': clean$' | grep -v '^$'
-# (no output)
-```
-
-```bash
-# Commit via Iceberg — from inside the running image
-curl -s -X POST http://localhost:8422/repl \
-  -H "Content-Type: text/plain" \
-  -d "| repo |
-repo := IceRepository registry detect: [:r | r name = 'my-project'].
-repo workingCopy refreshDirtyPackages.
-repo workingCopy commitWithMessage: 'feat(counter): add increment'"
-# → an IceCommit
-```
-
-The image stays live between steps. The agent can inspect live objects, browse class
-hierarchies, query running servers, and call methods at any point in the cycle.
-
-## Production Use
-
-[`punt-labs/claude-agent-sdk-smalltalk`](https://github.com/punt-labs/claude-agent-sdk-smalltalk)
-was developed using this workflow. That project ships five products for building
-Claude agents in Pharo: an API client for the Claude Messages API, an in-image
-agent tool runner, a Morphic GUI, and two integration layers. It currently has
-199 classes, 2,358 methods, and 765 passing tests across approximately 32,000
-lines of Smalltalk — all written, tested, and committed through Postern.
-
-## Packages
-
-| Package | Contents |
-|---------|----------|
-| `Postern-Core` | `PosternServer`, `PosternDelegate`, `PosternHelp` (10-route `/help` endpoint), `PosternImageBrowser` (introspection facade), `PosternWidget` (menu-bar status strip) |
-| `Postern-Dashboard` | `PosternDashboard` — Spec2 traffic monitor with per-server log isolation; `PosternRequestLogger`, `PosternDashboardModel` |
-| `Postern-IcebergExtensions` | `PosternSyncReferenceCommitCommand` — Iceberg context-menu command that syncs the working copy reference commit after CLI git operations |
-
-Load via `BaselineOfPostern`:
+### Load into Another Image
 
 ```smalltalk
 Metacello new
@@ -207,54 +140,124 @@ Metacello new
   load: 'all'.
 ```
 
-## API Reference
+### Agent Bootstrap
 
-### Eval server
+External agents should read the live help before writing Smalltalk:
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/repl` | `POST` | Evaluate Smalltalk (`text/plain` body). Returns `printString` of result. |
-| `/health` | `GET` | Liveness check. Returns `ok`. No auth required. |
-| `/help` | `GET` | Table of contents for the ten help sections. No auth required. |
-| `/help/{section}` | `GET` | `api`, `browse`, `pharo`, `dispatch`, `lint`, `git`, `testing`, `safety`, `makefile`, or `lessons`. |
-
-**Binding and authentication:**
-
-| Method | Binding | Auth |
-|--------|---------|------|
-| `PosternServer startOn: 8422` | loopback | none |
-| `PosternServer startOn: 8422 withAuth: true` | loopback | required |
-| `PosternServer startPublicOn: 8422` | all interfaces | required |
-
-There is no unauthenticated public mode. When auth is enabled, `/repl` requires an
-`X-Eval-Token` header; the token is written to `.tmp/eval-token`, and clients
-should read that file and send the header explicitly. `/health` and `/help` are
-always unauthenticated.
-
-**Line endings:** send LF. The server converts to CR before passing to the Pharo
-compiler. `/help` responses use LF.
-
-### Dashboard
-
-Open from the World menu: **Postern > Dashboard**, or evaluate:
-
-```smalltalk
-PosternDashboard open.
+```bash
+curl -s http://localhost:8422/help
+curl -s http://localhost:8422/help/api
+curl -s http://localhost:8422/help/browse
+curl -s http://localhost:8422/help/pharo
+curl -s http://localhost:8422/help/safety
 ```
 
-Shows live traffic per server: method, path, status code, duration, body snippet.
-The filter field takes keyboard focus on open. Multiple windows can monitor
-different servers simultaneously.
+The `/help` endpoint is served by the running image, so it reflects the
+loaded packages and current conventions instead of a static doc set.
 
-### Iceberg sync
+| Section | What it documents |
+|---------|-------------------|
+| `/help/api` | Eval server protocol: endpoints, auth, request and response format |
+| `/help/browse` | Read-only introspection: classes, methods, senders, implementors, source lookup |
+| `/help/pharo` | Pharo 12 standards: fluid class syntax, protocols, JSON pattern |
+| `/help/dispatch` | Sub-agent delegation: TDD cycle, required spec elements, anti-patterns |
+| `/help/lint` | Lint discipline: `make lint` is the gate, not per-method critiques |
+| `/help/git` | Iceberg commits, CLI merges, reference commit sync |
+| `/help/testing` | Scoped test runs, never the full Pharo suite |
+| `/help/safety` | Deadlock prevention, image discipline, orphan recovery |
+| `/help/makefile` | Image lifecycle: setup, start, stop, rebuild |
+| `/help/lessons` | Incident record: cascades, process failures, scope safety |
 
-After CLI git operations, Iceberg's working copy reference commit can drift from
-filesystem HEAD, showing a false "dirty" state. Fix it: right-click a repo in
-the Iceberg browser → **Postern > Sync reference commit**. Or evaluate:
+For Codex users, this repo also includes `.codex/config.toml` and
+`codex/rules/default.rules` so localhost help and REPL access can be
+preconfigured after the repo is trusted once.
 
-```smalltalk
-repo workingCopy referenceCommit: repo head commit.
+## Security
+
+Postern accepts Smalltalk code over HTTP and runs it in the live image.
+A client that can successfully call `/repl` can do what normal Smalltalk
+code in that image can do: change classes and methods, inspect objects,
+read and write files, and run shell commands with the OS permissions of
+the user running Pharo.
+
+By default, `make start` and `make start-headless` bind to `localhost`
+only and do **not** enable auth. When auth is enabled, the
+`X-Eval-Token` is a shared secret for `/repl`; it is not a sandbox,
+permission system, or read-only mode. `/help` and `/health` remain
+unauthenticated even when auth is on.
+
+Do not expose Postern to untrusted networks or untrusted agents. Do not
+run it in an environment containing secrets or data you would not hand
+to arbitrary code running as your user account.
+
+## Live Image Model
+
+Pharo stores code in a live object graph called an image. Compiling a
+method installs it into that graph immediately. The same session can
+define a class, call a method on it, run its tests, and inspect the
+objects it creates without a process restart.
+
+For agent-driven coding, that means the loop stays inside the running
+system. After sending a compile request, the agent can call the new
+method in the next request and branch on the real runtime result, not a
+restarted subprocess. Iceberg runs inside the same image, so commit
+operations can stay in the same session too.
+
+## Agent Workflow
+
+An external agent can drive a complete edit cycle through HTTP: read the
+live help, define or compile code, run scoped tests, and commit through
+Iceberg. A typical sequence looks like this:
+
+```bash
+curl -s http://localhost:8422/help/api
+curl -s http://localhost:8422/help/pharo
 ```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "(Object << #Counter
+  slots: { #count };
+  package: 'MyPackage') install"
+```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "Counter compile: 'increment
+  count := (count ifNil: [ 0 ]) + 1' classified: 'actions'"
+```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "CounterTest buildSuite run"
+```
+
+```bash
+curl -s -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -d "| repo |
+repo := IceRepository registry detect: [ :r | r name = 'my-project' ].
+repo workingCopy refreshDirtyPackages.
+repo workingCopy commitWithMessage: 'feat(counter): add increment'"
+```
+
+## Packages
+
+| Package | Contents |
+|---------|----------|
+| `Postern-Core` | `PosternServer`, `PosternDelegate`, `PosternHelp`, `PosternImageBrowser`, `PosternWidget` |
+| `Postern-Dashboard` | `PosternDashboard`, `PosternRequestLogger`, `PosternDashboardModel` |
+| `Postern-IcebergExtensions` | `PosternSyncReferenceCommitCommand` for Iceberg reference-commit sync |
+
+## Trivia
+
+The name is intentional: a postern is a back door or gate, a private
+side entrance, or in fortification usage, a small secondary gate in a
+wall or castle. That fits this project literally: it gives tools a side
+entrance into a live Pharo image without making the GUI the only way in.
 
 ## Development
 
@@ -262,15 +265,16 @@ repo workingCopy referenceCommit: repo head commit.
 make rebuild     # fresh image from Tonel (proves source completeness)
 make test        # run all Postern tests
 make lint        # Renraku lint — zero non-clean lines required before commit
-make filein      # reload Tonel packages into running image
+make filein      # reload Tonel packages into a running image
 make eval        # interactive Smalltalk eval (stdin to eval server)
-make transcript  # read Pharo Transcript
-make status      # health check — reports loaded class count
-make stop        # kill Pharo (no save — image is disposable)
+make transcript  # read the Pharo Transcript
+make status      # health check and loaded-class count
+make stop        # kill Pharo without saving the image
 ```
 
-The image is disposable. All code lives in `src/` (Tonel format). `make rebuild`
-must always succeed — if it fails, the source files are incomplete.
+The image is disposable. All code lives in `src/` in Tonel format.
+`make rebuild` must always succeed; if it fails, the source files are
+incomplete.
 
 ## License
 
