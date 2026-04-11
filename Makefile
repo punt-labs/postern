@@ -25,12 +25,10 @@ PORT := 8422
 IMAGE_DIR := $(CURDIR)/pharo
 BOOTSTRAP_URL := https://get.pharo.org/64/$(PHARO_VERSION)+vm
 BOOTSTRAP_SCRIPT := $(IMAGE_DIR)/bootstrap-pharo.sh
-BOOTSTRAP_STAMP := $(IMAGE_DIR)/.pharo-bootstrap
 SETUP_STAMP := $(IMAGE_DIR)/.postern-setup
 IMAGE := $(IMAGE_DIR)/Pharo.image
 CHANGES := $(IMAGE_DIR)/Pharo.changes
 VM := $(IMAGE_DIR)/pharo
-VM_UI := $(IMAGE_DIR)/pharo-ui
 PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
 SRC_DIR := $(CURDIR)/src
@@ -39,6 +37,12 @@ HEALTH_URL := http://localhost:$(PORT)/health
 CURL := curl -s -X POST $(URL) -H "Content-Type: text/plain"
 HEALTHCHECK := curl -fsS $(HEALTH_URL)
 SERVER_PATTERN := $(IMAGE) eval --no-quit PosternServer startOn: $(PORT)
+OS := $(shell uname -s)
+ifeq ($(OS),Darwin)
+VM_UI := $(IMAGE_DIR)/pharo-vm/Pharo.app/Contents/MacOS/Pharo
+else
+VM_UI := $(IMAGE_DIR)/pharo-vm/pharo
+endif
 MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
 
@@ -74,11 +78,13 @@ help:
 $(IMAGE_DIR):
 	mkdir -p $(IMAGE_DIR)
 
-$(BOOTSTRAP_STAMP): | $(IMAGE_DIR)
+bootstrap: | $(IMAGE_DIR)
 	@if [ -x $(VM) ] && [ -x $(VM_UI) ] && [ -f $(IMAGE) ] && [ -f $(CHANGES) ]; then \
 		echo ">> Using existing Pharo $(PHARO_VERSION) download..."; \
 	else \
 		echo ">> Downloading Pharo $(PHARO_VERSION)..."; \
+		rm -rf $(IMAGE_DIR)/pharo-vm $(IMAGE_DIR)/pharo-local; \
+		rm -f $(VM) $(IMAGE) $(CHANGES) $(IMAGE_DIR)/Pharo*.sources; \
 		rm -f $(BOOTSTRAP_SCRIPT); \
 		curl -fsSL $(BOOTSTRAP_URL) -o $(BOOTSTRAP_SCRIPT); \
 		cd $(IMAGE_DIR) && bash ./$(notdir $(BOOTSTRAP_SCRIPT)); \
@@ -88,12 +94,14 @@ $(BOOTSTRAP_STAMP): | $(IMAGE_DIR)
 	@test -x $(VM_UI)
 	@test -f $(IMAGE)
 	@test -f $(CHANGES)
-	@touch $@
 	@echo "  ok Pharo downloaded"
 
-bootstrap: $(BOOTSTRAP_STAMP)
+$(VM) $(VM_UI) $(IMAGE) $(CHANGES): | $(IMAGE_DIR)
+	@$(MAKE) bootstrap
 
-setup: $(BOOTSTRAP_STAMP)
+setup: $(SETUP_STAMP)
+
+$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES)
 	@echo ">> Loading Tonel packages into image..."
 	$(VM) $(IMAGE) eval --save "$(LOAD_PACKAGES_EXPR)"
 	@touch $(SETUP_STAMP)
@@ -101,14 +109,10 @@ setup: $(BOOTSTRAP_STAMP)
 
 # ── Run ────────────────────────────────────────────────
 
-start: $(BOOTSTRAP_STAMP)
+start: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
-		if [ ! -f $(SETUP_STAMP) ]; then \
-			echo ">> Postern image not initialized; running make setup..."; \
-			$(MAKE) setup || exit $$?; \
-		fi; \
 		if [ "$$(uname -s)" = "Linux" ] && [ -z "$$DISPLAY" ] && [ -z "$$WAYLAND_DISPLAY" ]; then \
 			echo "  FAIL make start requires a GUI session on Linux (DISPLAY or WAYLAND_DISPLAY)."; \
 			echo "       Use 'make start-headless' for a terminal-only session."; \
@@ -129,16 +133,12 @@ start: $(BOOTSTRAP_STAMP)
 		rm -f $(PID_FILE); \
 		echo "  FAIL Server did not start. Check $(LOG_FILE)"; \
 		exit 1; \
-		fi
+	fi
 
-start-headless: $(BOOTSTRAP_STAMP)
+start-headless: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
-		if [ ! -f $(SETUP_STAMP) ]; then \
-			echo ">> Postern image not initialized; running make setup..."; \
-			$(MAKE) setup || exit $$?; \
-		fi; \
 		echo ">> Starting Pharo headlessly on port $(PORT)..."; \
 		nohup $(VM) $(IMAGE) eval --no-quit \
 			"PosternServer startOn: $(PORT)" \
@@ -160,10 +160,16 @@ start-ui: start
 
 stop:
 	@collect_descendants() { \
-		parent="$$1"; \
-		for child in $$(pgrep -P "$$parent" 2>/dev/null || true); do \
-			collect_descendants "$$child"; \
-			printf '%s\n' "$$child"; \
+		pending="$$1"; \
+		while [ -n "$$pending" ]; do \
+			set -- $$pending; \
+			current="$$1"; \
+			shift; \
+			pending="$$*"; \
+			for next_pid in $$(pgrep -P "$$current" 2>/dev/null || true); do \
+				printf '%s\n' "$$next_pid"; \
+				pending="$$pending $$next_pid"; \
+			done; \
 		done; \
 	}; \
 	TARGETS=""; \
@@ -303,7 +309,8 @@ transcript:
 
 clean-image:
 	rm -f $(IMAGE) $(CHANGES) $(PID_FILE) $(LOG_FILE)
-	rm -f $(BOOTSTRAP_SCRIPT) $(BOOTSTRAP_STAMP) $(SETUP_STAMP)
+	rm -f $(BOOTSTRAP_SCRIPT) $(SETUP_STAMP)
+	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log
 	@echo "  ok Image removed"
 
