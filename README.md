@@ -12,8 +12,6 @@ executes them in the live image, and returns the result. Any outside
 tool — Claude Code, a CI job, a shell script — can drive the full development
 cycle without touching the Pharo GUI.
 
-Zero Claude SDK dependency.
-
 **Platforms:** macOS, Linux (Pharo 12)
 
 ## Quick Start
