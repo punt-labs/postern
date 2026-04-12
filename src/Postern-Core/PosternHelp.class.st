@@ -1018,7 +1018,8 @@ falls back to a repo-local runtime home under `.tmp/pharo-home`.
 
 On Windows ARM64, `make setup` automatically uses the Windows
 `x86_64` Stack VM under emulation because the default Windows JIT VM
-is not reliable there.
+is not reliable there. That path is headless-only, so use
+`make start-headless` instead of `make start`.
 
 ## Port
 

@@ -116,6 +116,7 @@ VM_ZIP=$TMP_DIR/vm.zip
 IMAGE_UNZIP_DIR=$TMP_DIR/image
 
 mkdir -p "$IMAGE_DIR" "$IMAGE_UNZIP_DIR"
+rm -f "$IMAGE_DIR/.postern-ui-unsupported"
 
 printf '%s\n' "Downloading the latest ${PHARO_VERSION} Image:"
 printf '%s\n' "    ${IMAGE_URL}"
@@ -191,13 +192,26 @@ exec "\$DIR/${VM_HEADLESS_REL:-$VM_UI_REL}" $HEADLESS_FLAGS "\$@"
 EOF
 chmod +x "$IMAGE_DIR/pharo"
 
-cat >"$IMAGE_DIR/pharo-ui" <<EOF
+if [[ "$WINDOWS_STACK_VM" -eq 1 ]]; then
+  cat >"$IMAGE_DIR/.postern-ui-unsupported" <<EOF
+FAIL Windows ARM64 currently supports headless Postern startup only.
+     Use 'make start-headless'.
+EOF
+  cat >"$IMAGE_DIR/pharo-ui" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "Windows ARM64 currently supports headless Postern startup only. Use 'make start-headless'." >&2
+exit 1
+EOF
+else
+  cat >"$IMAGE_DIR/pharo-ui" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 DIR=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
 set -f
 exec "\$DIR/$VM_UI_REL" "\$@"
 EOF
+fi
 chmod +x "$IMAGE_DIR/pharo-ui"
 
 printf '%s\n' "$IMAGE_DIR/pharo"
