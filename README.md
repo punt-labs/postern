@@ -14,7 +14,7 @@ drive compile, test, inspect, and commit loops without going through the
 Pharo GUI. It is intended for local development, CI, and agent-driven
 workflows where the image itself is the runtime.
 
-**Platforms:** macOS, Linux (`x86_64`, `arm64`/`aarch64`) (Pharo 12)
+**Platforms:** macOS, Linux (`x86_64`, `arm64`/`aarch64`), Windows (`x86_64`; ARM64 via x86_64 Stack VM emulation) (Pharo 12)
 
 ## Quick Start
 
@@ -30,6 +30,10 @@ make start
 host. If Pharo cannot write to its usual user config directories
 (for example inside a Codex or Claude Code sandbox), Postern falls back
 to a repo-local runtime home under `.tmp/pharo-home`.
+
+On Windows ARM64, `make setup` automatically uses the Windows `x86_64`
+Stack VM under emulation because the default Windows JIT VM is not
+reliable there.
 
 On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
 `make start-headless`.

@@ -1016,6 +1016,10 @@ If Pharo cannot write to its usual user config directory during
 falls back to a repo-local runtime home under `.tmp/pharo-home`.
 `make clean-image` and `make clean` remove that fallback directory.
 
+On Windows ARM64, `make setup` automatically uses the Windows
+`x86_64` Stack VM under emulation because the default Windows JIT VM
+is not reliable there.
+
 ## Port
 
 The default port is 8422. It is hardcoded in the Makefile as the

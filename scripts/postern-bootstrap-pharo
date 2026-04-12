@@ -30,6 +30,8 @@ fi
 
 UNAME_S=${POSTERN_BOOTSTRAP_OS:-$(uname -s)}
 UNAME_M=${POSTERN_BOOTSTRAP_ARCH:-$(uname -m)}
+WINDOWS_UNDER_ARM64=0
+WINDOWS_STACK_VM=0
 
 case "$UNAME_S" in
   Darwin)
@@ -70,6 +72,24 @@ case "$UNAME_M" in
     ;;
 esac
 
+if [[ "$OS_NAME" == "Windows" ]]; then
+  case "$UNAME_S/$UNAME_M" in
+    *ARM64*/x86_64|*ARM64*/amd64|*ARM64*/x86*|*ARM64*/arm64|*ARM64*/aarch64|*/arm64|*/aarch64)
+      WINDOWS_UNDER_ARM64=1
+      ;;
+  esac
+fi
+
+if [[ "$OS_NAME" == "Windows" && "$WINDOWS_UNDER_ARM64" -eq 1 ]]; then
+  # Git Bash on Windows ARM commonly reports uname -m as x86_64 under the x64
+  # emulation layer. Pharo's Windows x86_64 Stack VM runs reliably there,
+  # while the default JIT VM does not.
+  IMAGE_ARCH=x86_64
+  VM_ARCH=x86_64
+  WINDOWS_STACK_VM=1
+  printf '%s\n' "Detected Windows ARM64 host; bootstrapping the Windows x86_64 Stack VM under emulation."
+fi
+
 VM_CHANNEL=stable
 if [[ "$OS_NAME" == "Linux" && "$VM_ARCH" == "aarch64" ]]; then
   # Pharo currently publishes Linux ARM64 VMs only as "latest", not "stable".
@@ -79,6 +99,10 @@ fi
 FILES_URL=https://files.pharo.org/get-files/${PHARO_VERSION}
 IMAGE_URL=${FILES_URL}/pharoImage-${IMAGE_ARCH}.zip
 VM_URL=${FILES_URL}/pharo-vm-${OS_NAME}-${VM_ARCH}-${VM_CHANNEL}.zip
+if [[ "$WINDOWS_STACK_VM" -eq 1 ]]; then
+  STACK_VM_SERIES=$((10#$PHARO_VERSION / 10))
+  VM_URL=https://files.pharo.org/vm/pharo-spur64-headless/Windows-x86_64/stableStackVM${STACK_VM_SERIES}.zip
+fi
 mkdir -p "$IMAGE_DIR"
 TMP_DIR=$(mktemp -d "${IMAGE_DIR}/bootstrap.XXXXXX")
 
@@ -111,7 +135,7 @@ mv -f "$PHARO_IMAGE" "$IMAGE_DIR/Pharo.image"
 mv -f "$PHARO_CHANGES" "$IMAGE_DIR/Pharo.changes"
 mv -f "$PHARO_SOURCES" "$IMAGE_DIR/$(basename "$PHARO_SOURCES")"
 
-printf '%s\n' "Downloading the latest pharoVM:"
+printf '%s\n' "Downloading the pharoVM:"
 printf '%s\n' "    ${VM_URL}"
 download_to "$VM_URL" "$VM_ZIP"
 rm -rf "$IMAGE_DIR/pharo-vm"
@@ -140,11 +164,19 @@ case "$OS_NAME" in
     HEADLESS_FLAGS="--headless --vm-display-null"
     ;;
   Windows)
-    VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" \( -name Pharo.exe -o -name PharoConsole.exe \) | head -n 1)
-    if [[ -z "$VM_UI_REL" ]]; then
+    VM_HEADLESS_REL=$(find "$IMAGE_DIR/pharo-vm" -name PharoConsole.exe -type f | head -n 1)
+    VM_UI_REL=$(find "$IMAGE_DIR/pharo-vm" -name Pharo.exe -type f | head -n 1)
+    if [[ -z "$VM_HEADLESS_REL" && -z "$VM_UI_REL" ]]; then
       printf '%s\n' "downloaded VM archive did not contain a runnable Pharo executable" >&2
       exit 1
     fi
+    if [[ -z "$VM_HEADLESS_REL" ]]; then
+      VM_HEADLESS_REL=$VM_UI_REL
+    fi
+    if [[ -z "$VM_UI_REL" ]]; then
+      VM_UI_REL=$VM_HEADLESS_REL
+    fi
+    VM_HEADLESS_REL=${VM_HEADLESS_REL#"$IMAGE_DIR"/}
     VM_UI_REL=${VM_UI_REL#"$IMAGE_DIR"/}
     HEADLESS_FLAGS="--headless"
     ;;
@@ -155,7 +187,7 @@ cat >"$IMAGE_DIR/pharo" <<EOF
 set -euo pipefail
 DIR=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
 set -f
-exec "\$DIR/$VM_UI_REL" $HEADLESS_FLAGS "\$@"
+exec "\$DIR/${VM_HEADLESS_REL:-$VM_UI_REL}" $HEADLESS_FLAGS "\$@"
 EOF
 chmod +x "$IMAGE_DIR/pharo"
 
