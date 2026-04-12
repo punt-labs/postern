@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORT: 8422
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Postern
+        run: make setup
+      - name: Start Postern headlessly
+        run: make start-headless
+      - name: Health Check
+        run: |
+          curl -fsS "http://localhost:${PORT}/health"
+          make status
+      - name: Run Smalltalk tests
+        run: make test
+      - name: Stop Postern
+        if: always()
+        run: make stop || true

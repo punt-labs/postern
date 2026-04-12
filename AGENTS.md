@@ -79,3 +79,7 @@ tool sandbox unless allowlisted.
 
 If calls to `localhost:8422` fail unexpectedly, check agent permissions first
 before assuming the Postern server is down.
+
+`make setup` and the startup targets fall back to a repo-local runtime home
+under `.tmp/pharo-home` when the normal Pharo config directories are not
+writable, so agents usually do not need to override `HOME` manually.
