@@ -391,7 +391,7 @@ transcript:
 # ── Clean ──────────────────────────────────────────────
 
 clean-image:
-	rm -f $(IMAGE) $(CHANGES) $(VM) $(IMAGE_DIR)/pharo-ui $(PID_FILE) $(LOG_FILE)
+	rm -f $(IMAGE) $(CHANGES) $(VM) $(IMAGE_DIR)/pharo-ui $(UI_UNSUPPORTED) $(PID_FILE) $(LOG_FILE)
 	rm -f $(SETUP_STAMP)
 	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log
