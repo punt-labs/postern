@@ -14,7 +14,7 @@ drive compile, test, inspect, and commit loops without going through the
 Pharo GUI. It is intended for local development, CI, and agent-driven
 workflows where the image itself is the runtime.
 
-**Platforms:** macOS, Linux (`x86_64`, `arm64`/`aarch64`) (Pharo 12)
+**Platforms:** macOS, Linux (`x86_64`, `arm64`/`aarch64`), Windows (`x86_64`; ARM64 via x86_64 Stack VM emulation, headless-only) (Pharo 12)
 
 ## Quick Start
 
@@ -30,6 +30,11 @@ make start
 host. If Pharo cannot write to its usual user config directories
 (for example inside a Codex or Claude Code sandbox), Postern falls back
 to a repo-local runtime home under `.tmp/pharo-home`.
+
+On Windows ARM64, `make setup` automatically uses the Windows `x86_64`
+Stack VM under emulation because the default Windows JIT VM is not
+reliable there. That path is headless-only, so use `make start-headless`
+instead of `make start`.
 
 On headless Linux sessions without `DISPLAY` or `WAYLAND_DISPLAY`, use
 `make start-headless`.
@@ -50,8 +55,9 @@ read [Security](#security).
 - **HTTP REPL** — Evaluate Smalltalk in a live image through `POST /repl`.
 - **Live help from the image** — `/help` documents the loaded packages,
   conventions, and workflow directly from the running image.
-- **GUI and headless startup** — `make start` launches the Pharo UI and
-  `make start-headless` runs without it.
+- **GUI and headless startup** — `make start` launches the Pharo UI when
+  the selected VM supports it, and `make start-headless` runs without
+  it. Windows ARM64 currently uses a headless-only Stack VM path.
 - **Dashboard** — `PosternDashboard` shows live request traffic, status,
   and request and response bodies.
 - **Iceberg sync helper** — Repairs Iceberg reference-commit drift after

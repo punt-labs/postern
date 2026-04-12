@@ -32,6 +32,7 @@ SETUP_STAMP := $(IMAGE_DIR)/.postern-setup
 IMAGE := $(IMAGE_DIR)/Pharo.image
 CHANGES := $(IMAGE_DIR)/Pharo.changes
 VM := $(IMAGE_DIR)/pharo
+UI_UNSUPPORTED := $(IMAGE_DIR)/.postern-ui-unsupported
 PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
 DETACH := $(CURDIR)/scripts/postern-detach
@@ -46,11 +47,7 @@ HEALTHCHECK := curl -fsS $(HEALTH_URL)
 SERVER_PATTERN := $(IMAGE) eval --no-quit PosternServer startOn: $(PORT)
 SHELL_SCRIPTS := $(sort $(wildcard $(CURDIR)/scripts/*))
 OS := $(shell uname -s)
-ifeq ($(OS),Darwin)
-VM_UI := $(IMAGE_DIR)/pharo-vm/Pharo.app/Contents/MacOS/Pharo
-else
-VM_UI := $(IMAGE_DIR)/pharo-vm/pharo
-endif
+VM_UI := $(IMAGE_DIR)/pharo-ui
 MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
 
@@ -121,6 +118,10 @@ start: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
+		if [ -f $(UI_UNSUPPORTED) ]; then \
+			cat $(UI_UNSUPPORTED); \
+			exit 1; \
+		fi; \
 		if [ "$$(uname -s)" = "Linux" ] && [ -z "$$DISPLAY" ] && [ -z "$$WAYLAND_DISPLAY" ]; then \
 			echo "  FAIL make start requires a GUI session on Linux (DISPLAY or WAYLAND_DISPLAY)."; \
 			echo "       Use 'make start-headless' for a terminal-only session."; \
@@ -390,7 +391,7 @@ transcript:
 # ── Clean ──────────────────────────────────────────────
 
 clean-image:
-	rm -f $(IMAGE) $(CHANGES) $(VM) $(IMAGE_DIR)/pharo-ui $(PID_FILE) $(LOG_FILE)
+	rm -f $(IMAGE) $(CHANGES) $(VM) $(IMAGE_DIR)/pharo-ui $(UI_UNSUPPORTED) $(PID_FILE) $(LOG_FILE)
 	rm -f $(SETUP_STAMP)
 	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log

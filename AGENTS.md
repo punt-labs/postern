@@ -51,6 +51,9 @@ tool sandbox unless allowlisted.
    # or: make start-headless
    ```
 
+   On Windows ARM64, use `make start-headless`. That bootstrap path uses
+   the Windows `x86_64` Stack VM under emulation, and it is headless-only.
+
 2. In Codex, trust the repo once so project-scoped config is loaded.
 3. In Codex or Claude Code, use `/permissions` if `curl` to
    `localhost:8422` is still blocked.
