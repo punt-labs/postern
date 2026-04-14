@@ -30,7 +30,7 @@ entry, README first paragraph, community outreach) rather than code.
 | Pharo core release engineer | Build a 13 image, launch GUI, click to verify classes/methods. No automation. | `curl localhost:8422/repl` from a CI script. Headless bring-up verification in seconds. |
 | Package maintainer (compat across 12/13/14) | Install library on each Pharo in turn, eye-check tests, hope nothing regressed | Three images up on three ports, one script diffs test results across all three. Regression matrix in one pass. |
 | Release QA | Human-driven smoke test: open browser, compile a known class, check it works | Scripted smoke battery hitting `/repl` with known-good evaluations. Automated go/no-go. |
-| VM developer | Correlate VM changes to image-level behavior differences | Run identical eval suite against two VMs + same image. Postern's append-only eval log gives a timeline. |
+| VM developer | Correlate VM changes to image-level behavior differences | Run identical eval suite against two VMs + same image. Postern's request log (currently a bounded ring buffer) provides a timeline; a future append-only mode could extend this. |
 | Agent-driven dev (future) | None — no existing mechanism | LLM agents drive image iteration, compile/test/revert via tool calls. Pharo becomes LLM-native. |
 
 ## Endpoint ideas

@@ -32,7 +32,7 @@ erodes, the structure collapses into one of the rejected patterns.
    conditional.
 2. **Compat packages hold only shims.** Extension methods and
    polyfills. Not parallel implementations. If a compat package grows
-   past about 15 classes, divergence has gotten too large; consider a
+   past 20 classes, divergence has gotten too large; consider a
    parallel `Postern-Dashboard-PharoN` for just the offending package,
    or consider dropping support for the older Pharo version.
 3. **No `Smalltalk version` checks inside method bodies.** Version
@@ -43,9 +43,9 @@ erodes, the structure collapses into one of the rejected patterns.
 
 ```text
 punt-labs/postern/
-├── BaselineOfPostern/                    # single baseline with for: conditionals
-│   └── BaselineOfPostern.class.st
 ├── src/
+│   ├── BaselineOfPostern/                # single baseline with for: conditionals
+│   │   └── BaselineOfPostern.class.st
 │   ├── Postern-Core/                     # version-neutral. No version checks.
 │   ├── Postern-Dashboard/                # Spec2 UI. Mostly version-neutral.
 │   ├── Postern-IcebergExtensions/        # Iceberg-facing. Talks to compat, not internals.
@@ -67,11 +67,11 @@ baseline: spec
             package: 'Postern-Dashboard' with: [ spec requires: 'Postern-Core' ];
             package: 'Postern-IcebergExtensions' with: [ spec requires: 'Postern-Core' ] ].
     spec for: #'pharo12.x' do: [
-        spec package: 'Postern-Compat-Pharo12' with: [ spec requires: 'Postern-Core' ] ].
+        spec package: 'Postern-Compat-Pharo12' with: [ spec requires: 'Postern-IcebergExtensions' ] ].
     spec for: #'pharo13.x' do: [
-        spec package: 'Postern-Compat-Pharo13' with: [ spec requires: 'Postern-Core' ] ].
+        spec package: 'Postern-Compat-Pharo13' with: [ spec requires: 'Postern-IcebergExtensions' ] ].
     spec for: #'pharo14.x' do: [
-        spec package: 'Postern-Compat-Pharo13' with: [ spec requires: 'Postern-Core' ] ]
+        spec package: 'Postern-Compat-Pharo13' with: [ spec requires: 'Postern-IcebergExtensions' ] ].
 ```
 
 Pharo 14 reuses `Postern-Compat-Pharo13` by default. Only split to
