@@ -5,3 +5,4 @@ PharoDebug.log
 .tmp/
 *.image
 *.changes
+.biff.local
