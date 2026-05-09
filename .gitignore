@@ -11,11 +11,8 @@ PharoDebug.log
 *.local.*
 
 # Beads daemon/database state (only issues.jsonl is tracked)
-.beads/beads.db
-.beads/beads.db-shm
-.beads/beads.db-wal
-.beads/daemon-error
-.beads/daemon.lock
+.beads/beads.db*
+.beads/daemon-*
 .beads/daemon.log
 .beads/metadata.json
 .beads/.local_version
