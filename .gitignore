@@ -5,4 +5,17 @@ PharoDebug.log
 .tmp/
 *.image
 *.changes
-.biff.local
+
+# Local-only files (machine-specific, per-user)
+*.local
+*.local.*
+
+# Beads daemon/database state (only issues.jsonl is tracked)
+.beads/beads.db
+.beads/beads.db-shm
+.beads/beads.db-wal
+.beads/daemon-error
+.beads/daemon.lock
+.beads/daemon.log
+.beads/metadata.json
+.beads/.local_version
