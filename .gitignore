@@ -10,7 +10,7 @@ PharoDebug.log
 *.local
 *.local.*
 
-# Beads daemon/database state (only issues.jsonl is tracked)
+# Beads daemon/database state (issues.jsonl + interactions.jsonl are tracked)
 .beads/beads.db*
 .beads/daemon-*
 .beads/daemon.log
