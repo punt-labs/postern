@@ -83,7 +83,7 @@ Short version:
 >
 > It’s aimed at trusted local development, not exposed public access.
 >
-> Repo: https://github.com/punt-labs/postern
+> Repo: <https://github.com/punt-labs/postern>
 
 Longer version:
 
@@ -104,7 +104,7 @@ Longer version:
 > It’s intended for trusted local use. By design, if a client can hit
 > `/repl`, it can do what normal Smalltalk in that image can do.
 >
-> Repo: https://github.com/punt-labs/postern
+> Repo: <https://github.com/punt-labs/postern>
 
 ## Pharo-users Draft
 
@@ -140,7 +140,7 @@ Body:
 > execution environment, and the README/help make that explicit.
 >
 > Repository:
-> https://github.com/punt-labs/postern
+> <https://github.com/punt-labs/postern>
 >
 > I’d be glad to hear feedback, especially from people interested in live
 > development workflows, automation, and agent-assisted programming in
@@ -161,7 +161,7 @@ Body:
 >
 > I’ve released **Postern**:
 >
-> https://github.com/punt-labs/postern
+> <https://github.com/punt-labs/postern>
 >
 > Postern exposes a live Pharo image over HTTP so an external client can
 > interact with it directly. The main use case is agent-driven or scripted
@@ -200,7 +200,7 @@ Short version:
 > letting external clients evaluate code, run tests, inspect the image, and
 > use help served directly from the running system.
 >
-> https://github.com/punt-labs/postern
+> <https://github.com/punt-labs/postern>
 
 Shorter social copy:
 
@@ -210,7 +210,7 @@ Shorter social copy:
 > Compile, test, inspect, and browse the live image without going through
 > the GUI.
 >
-> https://github.com/punt-labs/postern
+> <https://github.com/punt-labs/postern>
 
 ## Demo Talking Points
 
