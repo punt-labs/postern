@@ -1,0 +1,28 @@
+# bd 1.0.x server-mode config for this repo.
+#
+# Connection details (host, port, user, password, TLS) come from
+# environment variables set by the org-root .envrc plus the central
+# config at ~/.config/beads/server.json. They are NOT stored here so
+# the same .beads/ works on every machine and across credential
+# rotations.
+#
+# Issue prefix lives in .beads/metadata.json (alongside dolt_mode and
+# dolt_database) so it travels with the repo.
+
+# Auto-scope `bd list` to this repo's records via the central DB's
+# `repo:postern` label. The label is backfilled in the Hosted DoltDB.
+# Note: bd 1.0.4's `bd ready` does NOT honor directory.labels — use
+# `bd ready --label-any repo:postern` until upstream fixes that.
+directory:
+  labels:
+    postern: repo:postern
+
+# Source of truth is the central Hosted DoltDB. Local Dolt-native backups
+# and auto-exported JSONL views are noise that creates stale-state
+# confusion (and the backup remote registration hangs on Hosted DoltDB
+# because the server-side mkdir fails on a local-path string).
+backup:
+  enabled: false
+export:
+  auto: false
+  git-add: false
