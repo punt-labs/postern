@@ -14,5 +14,4 @@ PharoDebug.log
 .beads/beads.db*
 .beads/daemon-*
 .beads/daemon.log
-.beads/metadata.json
 .beads/.local_version
