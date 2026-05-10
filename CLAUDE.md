@@ -170,7 +170,7 @@ fix it.
 ## Ethos & Delegation
 
 Identity: `agent: claude` per `.punt-labs/ethos.yaml`. Sub-agent calls
-(`Agent(subagent_type=…)`) match ethos identity handles.
+(e.g. `Agent(subagent_type="kwb")`) match ethos identity handles.
 
 Postern is a Pharo Smalltalk live-image runtime exposed over HTTP.
 Every change happens against a running image — there is no

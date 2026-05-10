@@ -91,7 +91,7 @@ writable, so agents usually do not need to override `HOME` manually.
 
 ## Ethos & Delegation
 
-Identity: `agent: claude` per `.punt-labs/ethos.yaml`. Sub-agent calls (`Agent(subagent_type=…)`) match ethos identity handles.
+Identity: `agent: claude` per `.punt-labs/ethos.yaml`. Sub-agent calls (e.g. `Agent(subagent_type="kwb")`) match ethos identity handles.
 
 Postern is a Pharo Smalltalk live-image runtime exposed over HTTP. Every change happens against a running image — there is no edit-compile-restart loop, only `compile`, `evaluate`, and `commit`. Worker pairs are Smalltalk specialists; evaluators bring Pike-style discipline (lint gate, scoped tests, deadlock recovery). Within each row, the worker and evaluator must be distinct handles. Claude is the leader, never the evaluator.
 
