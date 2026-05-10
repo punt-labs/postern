@@ -1,5 +1,7 @@
 # Postern — Agent Bootstrap
 
+> **Scope of this file.** AGENTS.md is the runtime bootstrap for **agents *using* Postern** — the HTTP server, the `/help` endpoints, the `/repl` evaluation flow. If you are an agent **developing Postern itself** (writing Smalltalk classes, refactoring, shipping releases), read [CLAUDE.md](CLAUDE.md) instead — it covers architecture, conventions, and the contributor delegation model.
+
 A live Smalltalk runtime is available at `http://localhost:8422`. You can compile
 code, run tests, inspect objects, and commit — all over HTTP, without touching the IDE.
 
@@ -91,7 +93,7 @@ writable, so agents usually do not need to override `HOME` manually.
 
 Identity: `agent: claude` per `.punt-labs/ethos.yaml`. Sub-agent calls (`Agent(subagent_type=…)`) match ethos identity handles.
 
-Postern is a Pharo Smalltalk live-image runtime exposed over HTTP. Every change happens against a running image — there is no edit-compile-restart loop, only `compile`, `evaluate`, and `commit`. Worker pairs are Smalltalk specialists; evaluators bring Pike-style discipline (lint gate, scoped tests, deadlock recovery). Worker and evaluator must be distinct handles with no shared role. Claude is the leader, never the evaluator.
+Postern is a Pharo Smalltalk live-image runtime exposed over HTTP. Every change happens against a running image — there is no edit-compile-restart loop, only `compile`, `evaluate`, and `commit`. Worker pairs are Smalltalk specialists; evaluators bring Pike-style discipline (lint gate, scoped tests, deadlock recovery). Within each row, the worker and evaluator must be distinct handles. Claude is the leader, never the evaluator.
 
 | Task type | Worker | Evaluator |
 |-----------|--------|-----------|
