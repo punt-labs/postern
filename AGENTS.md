@@ -1,5 +1,7 @@
 # Postern — Agent Bootstrap
 
+> **Scope of this file.** AGENTS.md is the runtime bootstrap for **agents *using* Postern** — the HTTP server, the `/help` endpoints, the `/repl` evaluation flow. If you are an agent **developing Postern itself** (writing Smalltalk classes, refactoring, shipping releases), read [CLAUDE.md](CLAUDE.md) instead — it covers architecture, conventions, and the contributor delegation model.
+
 A live Smalltalk runtime is available at `http://localhost:8422`. You can compile
 code, run tests, inspect objects, and commit — all over HTTP, without touching the IDE.
 
@@ -86,3 +88,23 @@ before assuming the Postern server is down.
 `make setup` and the startup targets fall back to a repo-local runtime home
 under `.tmp/pharo-home` when the normal Pharo config directories are not
 writable, so agents usually do not need to override `HOME` manually.
+
+## Ethos & Delegation
+
+Identity: `agent: claude` per `.punt-labs/ethos.yaml`. Sub-agent calls (e.g. `Agent(subagent_type="kwb")`) match ethos identity handles.
+
+Postern is a Pharo Smalltalk live-image runtime exposed over HTTP. Every change happens against a running image — there is no edit-compile-restart loop, only `compile`, `evaluate`, and `commit`. Worker pairs are Smalltalk specialists; evaluators bring Pike-style discipline (lint gate, scoped tests, deadlock recovery). Within each row, the worker and evaluator must be distinct handles. Claude is the leader, never the evaluator.
+
+| Task type | Worker | Evaluator |
+|-----------|--------|-----------|
+| Smalltalk class / method authoring | `kwb` (Beck) | `rej` (Johnson) |
+| Refactoring (rename, extract, move) | `rej` | `kwb` |
+| Test authoring (SUnit, scoped runs) | `kwb` | `rej` |
+| HTTP endpoint / Seaside / `/help` content | `rej` | `mdm` (Pike) |
+| Iceberg / git-from-image workflow | `kwb` | `adb` (Lovelace) |
+| REPL token / auth / safety boundary | `djb` (Bernstein) | `kwb` |
+| Image bootstrap / Makefile / headless start | `adb` | `mdm` |
+| Lint / dispatch / live-docs protocol | `mdm` | `rej` |
+| Cross-image deadlock or recovery investigation | `kwb` | `djb` |
+
+Use the `quick` pipeline for single-method or single-test changes inside an existing class. Use `standard` for new classes, protocol changes, or anything that touches the HTTP surface. Always read the relevant `/help/<section>` from the live image before delegating — the live docs reflect the loaded packages, not static files.
