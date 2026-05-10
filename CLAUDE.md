@@ -69,7 +69,7 @@ Metacello new
 
 ## Packages on Disk
 
-```
+```text
 src/
 ├── BaselineOfPostern/                 — Metacello baseline + manifest
 ├── Postern-Core/                      — HTTP server, /repl, /help, auth
