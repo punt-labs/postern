@@ -251,6 +251,10 @@ return rather than a stuck waiter.
   the worker can no longer append to it.
 - (+) Races are benign: terminate-after-finish is a no-op; a second Semaphore signal with no waiter is harmless.
 - (−) `terminate` stops **only the worker**. Processes the user's code itself forked keep running (see Limitations).
+- (note) `stop` is cooperative and distinct from `cancel`: it ends the loop only
+  once the current evaluation completes — while `runLoop` is parked on `resultSem
+  wait`, the `nil` sentinel cannot wake it. To abort a running evaluation, `cancel`
+  (which `terminate`s the worker) first, then `stop`.
 
 ---
 
@@ -283,6 +287,10 @@ in the image — including deep inside library methods — now resolves to the p
   `showln:`, `print:`, `display:`, `<<`, `cr`, `tab`, `space`, `flush`) and
   forwards everything else (control/GUI methods like `clear`, `endEntry`) to
   `default` via `doesNotUnderstand:`.
+- (+) Line-ending methods mirror Transcript's CR convention: `cr` and `showln:`
+  emit `Character cr` (Pharo's `Transcript show:; cr` uses CR), with a distinct
+  `lf` method for the LF variant. Capture buffers are normalized at the HTTP
+  boundary, so the on-wire ending is independent of this in-image choice.
 - (−) Output from processes the *user code itself* forks is not captured (their
   `activeProcess` is unregistered) — same boundary as ADR-007.
 - (−) Reassigning a core global is load-bearing and version-sensitive: **verify**
@@ -421,11 +429,11 @@ ProcessRoutedStream >> stopRedirecting: aProcess
 ProcessRoutedStream >> nextPut: aCharacter      ^ self currentStream nextPut: aCharacter
 ProcessRoutedStream >> nextPutAll: aCollection   ^ self currentStream nextPutAll: aCollection
 ProcessRoutedStream >> show: anObject     self currentStream nextPutAll: anObject asString. ^ self
-ProcessRoutedStream >> showln: anObject   self currentStream nextPutAll: anObject asString; nextPut: Character lf. ^ self
+ProcessRoutedStream >> showln: anObject   self currentStream nextPutAll: anObject asString; nextPut: Character cr. ^ self
 ProcessRoutedStream >> print: anObject    self currentStream print: anObject.   ^ self
 ProcessRoutedStream >> display: anObject  self currentStream display: anObject. ^ self
 ProcessRoutedStream >> << anObject        self currentStream << anObject.       ^ self
-ProcessRoutedStream >> cr                 self currentStream nextPut: Character lf. ^ self  "use Character cr to mirror Transcript exactly"
+ProcessRoutedStream >> cr                 self currentStream nextPut: Character cr. ^ self  "Character cr to mirror Transcript exactly; see lf for the LF variant"
 ProcessRoutedStream >> lf                 self currentStream nextPut: Character lf. ^ self
 ProcessRoutedStream >> tab                self currentStream tab.   ^ self
 ProcessRoutedStream >> space              self currentStream space. ^ self
@@ -466,7 +474,7 @@ Repl >> start
 
 Repl >> stop
     running := false.
-    inputQueue nextPut: nil.          "unblock the loop"
+    inputQueue nextPut: nil.          "wakes the loop only when it is idle-blocked on intake; an in-flight evaluation must be cancelled first (see ADR-007)"
 
 "Called from any input source (text field, socket, ...) in its own process"
 Repl >> submit: aSourceString
@@ -476,7 +484,7 @@ Repl >> runLoop
     [ running ] whileTrue: [
         | source |
         source := inputQueue next.     "BLOCKS here — UI (40) is highest runnable"
-        source ifNotNil: [
+        (running and: [ source notNil ]) ifTrue: [   "re-check running: drop work queued after stop"
             | pair |
             pair := self evaluate: source.   "blocks on resultSem; UI runs during work"
             self printOutcome: (pair at: 1) output: (pair at: 2) ] ]
