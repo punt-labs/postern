@@ -15,3 +15,6 @@ PharoDebug.log
 .beads/daemon-*
 .beads/daemon.log
 .beads/.local_version
+
+# Quarry session-transcript captures (pkit-kcps)
+.punt-labs/quarry/captures/
