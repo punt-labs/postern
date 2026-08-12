@@ -18,3 +18,6 @@ PharoDebug.log
 
 # Quarry session-transcript captures (pkit-kcps)
 .punt-labs/quarry/captures/
+
+# Claude Code local settings (per-machine, may contain paths/tokens)
+.claude/settings.local.json
