@@ -1,0 +1,37 @@
+# Qodo v2 review config from punt-kit pr_agent.toml template. One review on open, no per-push
+# re-review, only High findings inline (they become blocking threads).
+# Only bot-authored PRs are skipped; no title or label lets an author opt out.
+[github_app]
+ignore_bot_pr = true
+pr_commands = ["/agentic_describe", "/agentic_review"]
+handle_push_trigger = false
+
+[review_agent]
+enable_incremental_review = true
+# comments_routing below is authoritative; the threshold restates it (High only inline).
+inline_comments_severity_threshold = 3
+issues_user_guidelines = """
+Postern is a Pharo 12 HTTP eval server (Zinc-backed, /repl, /health, /help) with an optional Morphic dashboard and Iceberg helpers, as Tonel packages under src/, plus bash helpers in scripts/.
+Target: Pharo 12 only; bash scripts run on macOS and Ubuntu.
+Report every finding in this one pass; do not hold findings back for a later pass.
+Flag only defects reachable by a real caller of the changed code: logic errors, None paths, security, API contract breaks, concurrency, resource leaks.
+Do not flag hypothetical environments (exotic env vars such as CDPATH or GIT_TRACE, control bytes in paths, tests run as root).
+Do not flag what CI enforces: shellcheck (make shellcheck), the Test workflow (make setup, start-headless, make test), markdownlint in the Docs workflow.
+Do not flag lines the PR did not change.
+Never suggest alternate HTTP libraries or external Metacello dependencies in Postern-Core; Zinc, STON, and NeoJSON are the stack, and OpalCompiler is the evaluation entry point.
+Do not comment on the layout or formatting of Tonel files (*.class.st, package.st, .properties); Iceberg generates them.
+"""
+compliance_user_guidelines = """
+Apply code rules only: correctness, typing, error handling, security, and the coding standards for the changed files.
+Do not grade PR titles, PR descriptions, commit messages, or CHANGELOG wording.
+Do not grade agent process rules from CLAUDE.md, AGENTS.md, or WORKFLOW.md (missions, beads, review cycles, delegation).
+"""
+smart_router_extra_instructions = """
+High risk: src/Postern-Core/ (HTTP server, /repl evaluation, auth on /repl), scripts/, src/Postern-IcebergExtensions/, and .github/workflows/.
+Low risk: docs-only diffs (*.md, docs/) and test-only diffs (src/*-Tests/).
+"""
+
+[review_agent.comments_routing]
+action_required = "both"
+remediation_recommended = "summary"
+informational = "drop"
