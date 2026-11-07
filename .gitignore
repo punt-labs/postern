@@ -21,3 +21,11 @@ PharoDebug.log
 
 # Claude Code local settings (per-machine, may contain paths/tokens)
 .claude/settings.local.json
+
+# ethos local zone (runtime state, never committed)
+.punt-labs/**/local/**
+.punt-labs/**/*.local.*
+.punt-labs/ethos/sessions/
+.punt-labs/ethos/missions/
+.punt-labs/ethos/missions.jsonl*
+.punt-labs/**/*.ethos-tmp*

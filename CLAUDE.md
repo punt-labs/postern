@@ -254,6 +254,8 @@ Pharo IDE and let `Postern-IcebergExtensions` repair any drift after.
 When committing **from CLI**, run `make iceberg-repair` from the image
 side to keep Iceberg's reference commit aligned.
 
+PR review follows punt-kit/standards/pr-review.md: local review (qodo review + silent-failure-hunter + code-reviewer) before the PR, then Qodo and Bugbot once at open, at most two rounds, Copilot only on request.
+
 ## Cross-Repo Relationship
 
 Postern is a sibling of `claude-agent-sdk-smalltalk`. That repo loads
