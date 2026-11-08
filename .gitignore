@@ -29,3 +29,6 @@ PharoDebug.log
 .punt-labs/ethos/missions/
 .punt-labs/ethos/missions.jsonl*
 .punt-labs/**/*.ethos-tmp*
+
+# ethos: shared machine-local zone (never track)
+.punt-labs/local/
