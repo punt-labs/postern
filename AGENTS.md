@@ -108,3 +108,7 @@ Postern is a Pharo Smalltalk live-image runtime exposed over HTTP. Every change 
 | Cross-image deadlock or recovery investigation | `kwb` | `djb` |
 
 Use the `quick` pipeline for single-method or single-test changes inside an existing class. Use `standard` for new classes, protocol changes, or anything that touches the HTTP surface. Always read the relevant `/help/<section>` from the live image before delegating — the live docs reflect the loaded packages, not static files.
+
+## Issue tracking
+
+Read `.punt-labs/punt/CLAUDE.md` before planning or writing to the issue tracker. Linear is the tracker of record where this repo is migrated. Beads is a local mirror there and the tracker of record elsewhere.

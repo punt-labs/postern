@@ -278,3 +278,4 @@ verify integration end-to-end, release together.
 - [Makefile](https://github.com/punt-labs/punt-kit/blob/main/standards/makefile.md)
 - [Shell](https://github.com/punt-labs/punt-kit/blob/main/standards/shell.md)
 - [README](https://github.com/punt-labs/punt-kit/blob/main/standards/readme.md)
+@.punt-labs/punt/CLAUDE.md
