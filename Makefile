@@ -371,7 +371,7 @@ check-packages:
 		dir := '$(SRC_DIR)' asFileReference. \
 		expected := ((dir children select: [ :d | d isDirectory and: [ (d / 'package.st') exists ] ]) collect: [ :d | d basename ]) asSet. \
 		loaded := (Smalltalk globals allClasses select: [ :c | \
-			c package name beginsWith: 'Postern-' ]) \
+			(c package name beginsWith: 'Postern-') or: [ c package name = 'BaselineOfPostern' ] ]) \
 			collect: [ :c | c package name ] as: Set. \
 		missing := expected difference: loaded. \
 		missing isEmpty \
