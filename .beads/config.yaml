@@ -6,8 +6,16 @@
 # the same .beads/ works on every machine and across credential
 # rotations.
 #
-# Issue prefix lives in .beads/metadata.json (alongside dolt_mode and
-# dolt_database) so it travels with the repo.
+# Issue prefix for this repository. It is also set in .beads/metadata.json
+# (alongside dolt_mode and dolt_database); bd reads one `issue-prefix` key:
+# the BD_ISSUE_PREFIX environment variable when set, else this value, else
+# the metadata.json value copied in at startup. So this key wins for every
+# reader (`bd create` and `bd linear sync --pull` alike) unless the variable
+# overrides it, and nothing checks that the two files agree; keep them
+# equal. `linear.pull_label` keeps that pull inside this repo's Linear
+# issues; Linear is the tracker of record (see .punt-labs/punt/CLAUDE.md).
+issue-prefix: postern
+linear.pull_label: repo:postern
 
 # Auto-scope `bd list` to this repo's records via the central DB's
 # `repo:postern` label. The label is backfilled in the Hosted DoltDB.
