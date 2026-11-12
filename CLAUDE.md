@@ -219,23 +219,38 @@ static files.
   package use the package's prefix.
 - **Resource files** — under `resources/`, kebab-case names.
 
-## Beads (Task Tracking)
+## Issue Tracking
 
-This project uses **bd** for issue tracking. Conventions match the org
-standard:
+Linear is the tracker of record: the Punt Labs team, issues labelled
+`repo:postern`, listed in the shared `postern` view. Beads (`bd`) is a
+read-mostly local mirror; `.punt-labs/punt/CLAUDE.md` (imported below)
+has the rules for which tracker to write to, and `.beads/README.md` has
+the mirror commands and the required `bd` build.
 
 ```bash
-bd ready              # find available work
-bd show <id>          # view issue
-bd update <id> --status=in_progress
-bd close <id>
-bd sync
+# Finding work (local reads of the mirror; refresh it first)
+bd config get linear.pull_label   # Must print repo:postern; if not, pull main and re-run before any pull
+bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d
+bd ready --label-any repo:postern --exclude-label deferred   # Ready work in this repo
+bd list --label-any repo:postern --status=open               # Open issues in this repo
+bd show <id>                                                 # Details with dependencies
 ```
 
+Create, claim (In Progress), finish (Done) and cancel issues in Linear,
+with the `repo:postern` label plus a type label (`Bug`, `Feature`,
+`Improvement`, `Epic`). A local `bd update`, `bd close` or `bd create` is
+undone by the next pull. After a status change in Linear, refresh the
+bead with a by-id pull: `bd linear sync --pull --issues <PL id> --team
+c1dfbb2c-985e-40cf-b004-5127646efc9d` (the PL id must carry
+`repo:postern`; a by-id pull fetches only the named issue). Blockers are
+`blocks` relations in Linear, mirrored with `bd dep add <bead> <blocker>`
+when the refresh ran without `--relations`. There is no beads sync step
+at session close; issue status is written in Linear.
+
 Bead IDs start with `postern-`. Work that affects multiple repos (e.g.
-the Postern <-> claude-agent-sdk-smalltalk integration) should be
-tracked in punt-kit instead — see the org-wide CLAUDE.md "where to
-create a bead" section.
+the Postern <-> claude-agent-sdk-smalltalk integration) should be filed
+against punt-kit instead — see the org-wide CLAUDE.md "where to create a
+bead" section.
 
 ## Git Integration
 
