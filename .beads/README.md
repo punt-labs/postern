@@ -36,6 +36,8 @@ password store). See punt-labs/`.envrc` for the canonical setup.
 ## Daily commands
 
 ```bash
+bd config get linear.pull_label
+                      # must print repo:postern; if not, pull main and re-run before any pull
 bd linear sync --pull-if-stale --relations --team c1dfbb2c-985e-40cf-b004-5127646efc9d
                       # refresh the mirror from Linear (needs LINEAR_API_KEY)
 bd list --label-any repo:postern
