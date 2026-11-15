@@ -154,14 +154,16 @@ There is no unauthenticated public mode. The token is written to
 
 ## Quality Gates
 
-Run before every commit:
+Run before every commit; [CONTRIBUTING.md](CONTRIBUTING.md) lists each
+command:
 
-```bash
-make check
-```
-
-Expands to: lint pass over Tonel sources, scoped test run, markdownlint
-on docs, and a `health` ping to make sure the running image is alive.
+- `make lint` — shellcheck on `scripts/` plus Renraku lint over every
+  Postern class; every class must report `clean`.
+- `make test` — the `Postern-*-Tests` suites; zero failures and errors.
+- `make check` — every package in `src/` is loaded and the Iceberg
+  working copy is clean.
+- markdownlint on all Markdown files (the Docs CI job).
+- `make rebuild` — a fresh image from `src/` must load.
 
 If `make check` fails, fix the underlying issue. The "no pre-existing
 excuse" rule applies here as everywhere — if you see something broken,
