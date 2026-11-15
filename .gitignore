@@ -27,3 +27,6 @@ PharoDebug.log
 
 # ethos: shared machine-local zone (never track)
 .punt-labs/local/
+
+# Ignore any leftover local beads runtime state (tracker retired)
+.beads/
