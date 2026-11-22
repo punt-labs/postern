@@ -1,0 +1,33 @@
+name: postern
+description: >-
+  Per-file shell and Markdown feedback on edit, shellcheck at commit, and the
+  same static checks at handoff. Smalltalk is validated in the live image
+  (make lint, make test, make check), not by these file-level checks.
+checks:
+  - name: shellcheck
+    stage: edit
+    files: ["scripts/*", "**/*.sh"]
+    run: [shellcheck, "{file}"]
+    on_fail: advisory
+  - name: markdownlint
+    stage: edit
+    files: ["**/*.md"]
+    exclude: [".claude/**", "pharo/**"]
+    run: [markdownlint-cli2, "{file}"]
+    on_fail: advisory
+  - name: shellcheck-staged
+    stage: commit
+    files: ["scripts/*", "**/*.sh"]
+    run: [shellcheck, "{files}"]
+    on_fail: block
+  - name: shellcheck-handoff
+    stage: handoff
+    files: ["scripts/*", "**/*.sh"]
+    run: [shellcheck, "{files}"]
+    on_fail: block
+  - name: markdownlint-handoff
+    stage: handoff
+    files: ["**/*.md"]
+    exclude: [".claude/**", "pharo/**"]
+    run: [markdownlint-cli2, "{files}"]
+    on_fail: block
