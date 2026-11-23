@@ -23,6 +23,18 @@ Class {
 }
 
 { #category : 'private' }
+PosternServer class >> enableAuthFor: delegate [
+	| token |
+	token := self generateToken.
+	delegate token: token.
+	delegate authEnabled: true.
+	'.tmp' asFileReference ensureCreateDirectory.
+	('.tmp/eval-token' asFileReference)
+		ensureDelete;
+		writeStreamDo: [ :s | s nextPutAll: token ]
+]
+
+{ #category : 'private' }
 PosternServer class >> generateToken [
 	| hex chars rng |
 	chars := '0123456789abcdef'.
@@ -36,57 +48,34 @@ PosternServer class >> generateToken [
 { #category : 'instance creation' }
 PosternServer class >> startOn: port [
 	"Start on loopback with no authentication. Safe for local development."
+	^ self startOn: port withAuth: false
+]
+
+{ #category : 'private' }
+PosternServer class >> startOn: port address: address withAuth: aBoolean [
 	| server delegate |
 	delegate := PosternDelegate new.
+	aBoolean ifTrue: [ self enableAuthFor: delegate ].
 	server := ZnServer on: port.
-	server bindingAddress: NetNameResolver loopBackAddress.
+	address ifNotNil: [ server bindingAddress: address ].
 	server serverId: 'postern-', port printString.
 	delegate server: server.
 	server delegate: delegate.
-	server start.
+	(PosternDelegate canUnderstand: #attachObservability) ifTrue: [ delegate attachObservability ].
+	[ server start.
+	  delegate recordServerStarted ]
+		ifCurtailed: [ delegate close ].
 	^ server
 ]
 
 { #category : 'instance creation' }
 PosternServer class >> startOn: port withAuth: aBoolean [
 	"Start on loopback with optional authentication."
-	| server delegate |
-	delegate := PosternDelegate new.
-	aBoolean ifTrue: [
-		| token |
-		token := self generateToken.
-		delegate token: token.
-		delegate authEnabled: true.
-		'.tmp' asFileReference ensureCreateDirectory.
-		('.tmp/eval-token' asFileReference)
-			ensureDelete;
-			writeStreamDo: [ :s | s nextPutAll: token ] ].
-	server := ZnServer on: port.
-	server bindingAddress: NetNameResolver loopBackAddress.
-	server serverId: 'postern-', port printString.
-	delegate server: server.
-	server delegate: delegate.
-	server start.
-	^ server
+	^ self startOn: port address: NetNameResolver loopBackAddress withAuth: aBoolean
 ]
 
 { #category : 'instance creation' }
 PosternServer class >> startPublicOn: port [
-	"Start on all interfaces with authentication required.
-	 Auth is always enabled for public binding — there is no unauthenticated public mode."
-	| server delegate token |
-	delegate := PosternDelegate new.
-	token := self generateToken.
-	delegate token: token.
-	delegate authEnabled: true.
-	'.tmp' asFileReference ensureCreateDirectory.
-	('.tmp/eval-token' asFileReference)
-		ensureDelete;
-		writeStreamDo: [ :s | s nextPutAll: token ].
-	server := ZnServer on: port.
-	server serverId: 'postern-', port printString.
-	delegate server: server.
-	server delegate: delegate.
-	server start.
-	^ server
+	"Start on all interfaces with mandatory authentication."
+	^ self startOn: port address: nil withAuth: true
 ]

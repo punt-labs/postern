@@ -14,7 +14,7 @@ Domain state lives in PosternDashboardModel, which is shared with PosternStatusP
 
 ### Cascade prevention (2026-04-06 COE)
 
-The original design had a class-side Default singleton. Rounds 1-4b built workarounds on top of it; Round 5 removed it. The cascade root cause was leaked subscriptions on the singleton slot — without a singleton there is nothing to leak at the class level. Each window's lifecycle is self-contained. The exception-safety safely:describe: wrapping in windowClosed stays — it remains load-bearing regardless of the singleton question.
+The original design had a class-side Default singleton. Rounds 1-4b built workarounds on top of it; Round 5 removed it. The cascade root cause was leaked subscriptions on the singleton slot — without a singleton there is nothing to leak at the class level. Each window's lifecycle is self-contained. The exception-safety safely: wrapping in windowClosed stays — it remains load-bearing regardless of the singleton question.
 "
 Class {
 	#name : 'PosternDashboard',
@@ -322,22 +322,11 @@ PosternDashboard >> refreshLogTable [
 ]
 
 { #category : 'private' }
-PosternDashboard >> safely: aBlock describe: aStepName [
-	"Run aBlock. On any Error, log to Transcript with aStepName for
-	diagnostics and swallow the exception. Used by windowClosed to
-	guarantee no exception escapes the close handler — see COE at
-	docs/coes/2026-04-06-dashboard-cascade.md."
-
-	[ aBlock value ] on: Error do: [ :ex |
-		Transcript
-			show: 'PosternDashboard windowClosed: ';
-			show: aStepName;
-			show: ' raised ';
-			show: ex class name;
-			show: ' — ';
-			show: (ex messageText ifNil: [ '' ]);
-			show: ' (swallowed; cascade prevention)';
-			cr ]
+PosternDashboard >> safely: aBlock [
+	[ aBlock value ] on: Error do: [ :error |
+		model ifNotNil: [
+			model server ifNotNil: [ :server |
+				server delegate recordDashboardCleanupFailure: error ] ] ]
 ]
 
 { #category : 'accessing' }
@@ -460,8 +449,8 @@ PosternDashboard >> windowClosed [
 	this window. windowClosed only releases this view resources —
 	the refresh process and the announcer subscription. The logger
 	itself keeps running with the server."
-	self safely: [ self stopRefreshProcess ] describe: 'stopRefreshProcess'.
+	self safely: [ self stopRefreshProcess ].
 	self safely: [
 		model ifNotNil: [
-			model logger announcer unsubscribe: self ] ] describe: 'unsubscribe view from logger'
+			model logger announcer unsubscribe: self ] ]
 ]

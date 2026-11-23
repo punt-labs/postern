@@ -19,7 +19,8 @@ Class {
 		'lastRequestTime',
 		'lastRequestDescription',
 		'requestLogger',
-		'server'
+		'server',
+		'observability'
 	],
 	#category : 'Postern-Core',
 	#package : 'Postern-Core'
@@ -35,12 +36,35 @@ PosternDelegate >> authEnabled: aBoolean [
 	authEnabled := aBoolean
 ]
 
+{ #category : 'dependencies' }
+PosternDelegate >> close [
+	[ self release ] ensure: [
+		observability ifNotNil: [ :observer |
+			observability := nil.
+			observer close ] ]
+]
+
 { #category : 'private' }
 PosternDelegate >> evaluate: string [
-	"Normalize LF to CR in input, then delegate to super."
 	| normalized |
 	normalized := string copyReplaceAll: String lf with: String cr.
-	^ super evaluate: normalized
+	observability ifNil: [ ^ super evaluate: normalized ].
+	^ self evaluateObserved: normalized
+]
+
+{ #category : 'private' }
+PosternDelegate >> evaluateObserved: string [
+	| output |
+	output := String streamContents: [ :out |
+		[ out print: (self class compiler evaluate: string); cr.
+		  observability ifNotNil: [ :observer | observer evalSucceeded ] ]
+			on: Error do: [ :exception |
+				observability ifNotNil: [ :observer | observer evalFailed: exception ].
+				out print: exception; cr.
+				exception signalerContext printDetails: out.
+				exception signalerContext sender debugStack: 8 on: out ].
+		out cr ].
+	^ String lf join: output lines
 ]
 
 { #category : 'private - help' }
@@ -58,11 +82,7 @@ PosternDelegate >> handleHelpRequest: request [
 	pathSegments := [ request uri segments ]
 		on: Error
 		do: [ :ex |
-			Transcript
-				show: 'PosternDelegate>>handleHelpRequest: uri segments failed (';
-				show: ex class name;
-				show: ')';
-				cr.
+			observability ifNotNil: [ :observer | observer malformedRequest: ex ].
 			^ ZnResponse new
 				statusLine: ZnStatusLine badRequest;
 				entity: (ZnEntity text: ex description);
@@ -86,39 +106,16 @@ PosternDelegate >> handleHelpRequest: request [
 
 { #category : 'public' }
 PosternDelegate >> handleRequest: request [
-	"Record bookkeeping then dispatch. Bookkeeping is wrapped so that a
-	failure in clock or URI access never prevents the request from being
-	served. Safety: cascade-prevention pass — see COE 2026-04-06.
-
-	Both /health and /help are handled before the auth check. /help is
-	exempt from auth per docs/designs/postern.md §4.6 — its content
-	describes the auth protocol itself."
-	| segment |
+	| segment response |
 	segment := [ request uri firstPathSegment ]
-		on: Error
-		do: [ :ex |
-			Transcript
-				show: 'PosternDelegate>>handleRequest: uri parse failed (';
-				show: ex class name;
-				show: ') — falling back to nil segment';
-				cr.
+		on: Error do: [ :ex |
+			observability ifNotNil: [ :observer | observer malformedRequest: ex ].
 			nil ].
-	segment = 'health'
-		ifTrue: [ ^ ZnResponse ok: (ZnEntity text: 'ok') ].
-	segment = 'help'
-		ifTrue: [ ^ self handleHelpRequest: request ].
-	(self isAuthenticated: request)
-		ifFalse: [ ^ ZnResponse unauthorized: 'X-Eval-Token' ].
-	[ requestCount := self requestCount + 1.
-	  lastRequestTime := DateAndTime now.
-	  lastRequestDescription := segment ]
-		on: Error
-		do: [ :ex |
-			Transcript
-				show: 'PosternDelegate bookkeeping suppressed: ';
-				show: (ex messageText ifNil: [ ex class name ]);
-				cr ].
-	^ super handleRequest: request
+	response := (self specialResponseFor: request segment: segment)
+		ifNil: [ super handleRequest: request ].
+	observability ifNotNil: [ :observer |
+		observer requestOn: (self routeForSegment: segment) status: response status ].
+	^ response
 ]
 
 { #category : 'initialization' }
@@ -155,22 +152,23 @@ PosternDelegate >> normalizeLineEndings: aString [
 		copyReplaceAll: String cr with: String lf
 ]
 
+{ #category : 'private' }
+PosternDelegate >> recordDashboardCleanupFailure: error [
+	observability ifNotNil: [ :observer | observer dashboardCleanupFailed: error ]
+]
+
+{ #category : 'private' }
+PosternDelegate >> recordServerStarted [
+	observability ifNotNil: [ :observer | observer serverStarted ]
+]
+
 { #category : 'dependencies' }
 PosternDelegate >> release [
-	"Stop the request logger if started, then super. Called by ZnServer
-	on stop. Cleanup is best-effort: a failure here must not prevent
-	server shutdown. Failures are logged to Transcript for diagnostics."
+	"Stop the dashboard logger if started; cleanup must not prevent shutdown."
 	requestLogger ifNotNil: [
 		[ requestLogger stop ]
-			on: Error
-			do: [ :ex |
-				Transcript
-					show: 'PosternDelegate>>release: requestLogger stop raised ';
-					show: ex class name;
-					show: ' — ';
-					show: (ex messageText ifNil: [ '' ]);
-					show: ' (swallowed for shutdown safety)';
-					cr ].
+			on: Error do: [ :ex |
+				self recordDashboardCleanupFailure: ex ].
 		requestLogger := nil ].
 	super release
 ]
@@ -207,6 +205,12 @@ PosternDelegate >> requestLoggerClass [
 				'Postern-Dashboard is not loaded; PosternRequestLogger is unavailable' ]
 ]
 
+{ #category : 'private' }
+PosternDelegate >> routeForSegment: segment [
+	(#(health help repl) includes: segment) ifFalse: [ ^ #other ].
+	^ segment asSymbol
+]
+
 { #category : 'accessing' }
 PosternDelegate >> server [
 	^ server
@@ -215,6 +219,24 @@ PosternDelegate >> server [
 { #category : 'accessing' }
 PosternDelegate >> server: aZnServer [
 	server := aZnServer
+]
+
+{ #category : 'private' }
+PosternDelegate >> specialResponseFor: request segment: segment [
+	segment = 'health'
+		ifTrue: [ ^ ZnResponse ok: (ZnEntity text: 'ok') ].
+	segment = 'help'
+		ifTrue: [ ^ self handleHelpRequest: request ].
+	(self isAuthenticated: request)
+		ifFalse: [
+			observability ifNotNil: [ :observer | observer authRejected ].
+			^ ZnResponse unauthorized: 'X-Eval-Token' ].
+	[ requestCount := self requestCount + 1.
+	  lastRequestTime := DateAndTime now.
+	  lastRequestDescription := segment ]
+		on: Error do: [ :ex |
+			observability ifNotNil: [ :observer | observer bookkeepingFailed: ex ] ].
+	^ nil
 ]
 
 { #category : 'accessing' }
