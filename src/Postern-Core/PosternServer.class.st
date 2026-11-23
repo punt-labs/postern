@@ -56,15 +56,12 @@ PosternServer class >> startOn: port address: address withAuth: aBoolean [
 	| server delegate |
 	delegate := PosternDelegate new.
 	aBoolean ifTrue: [ self enableAuthFor: delegate ].
-	server := ZnServer on: port.
+	server := PosternZincServer on: port.
 	address ifNotNil: [ server bindingAddress: address ].
 	server serverId: 'postern-', port printString.
 	delegate server: server.
 	server delegate: delegate.
-	(PosternDelegate canUnderstand: #attachObservability) ifTrue: [ delegate attachObservability ].
-	[ server start.
-	  delegate recordServerStarted ]
-		ifCurtailed: [ delegate close ].
+	server start.
 	^ server
 ]
 

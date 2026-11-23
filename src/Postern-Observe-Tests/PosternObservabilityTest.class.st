@@ -66,6 +66,23 @@ PosternObservabilityTest >> testRequestSchemaRejectsArbitraryPathsAndStatusStrin
 ]
 
 { #category : 'tests' }
+PosternObservabilityTest >> testRestartReattachesObserver [
+	| server activeServers before |
+	activeServers := [ PosternObservability classPool at: #ActiveServers ].
+	before := activeServers value.
+	server := PosternServer startOn: 0.
+	[ self assert: activeServers value equals: before + 1.
+	  server stop.
+	  self assert: activeServers value equals: before.
+	  server start.
+	  self assert: activeServers value equals: before + 1.
+	  server start.
+	  self assert: activeServers value equals: before + 1 ]
+		ensure: [ server stop ].
+	self assert: activeServers value equals: before
+]
+
+{ #category : 'tests' }
 PosternObservabilityTest >> testSourceBoundaries [
 	self assert: (PuntLogSourceGate
 		violationsInPackages: #('Postern-Core' 'Postern-Observe' 'Postern-Dashboard' 'Postern-IcebergExtensions')

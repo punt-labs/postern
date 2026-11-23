@@ -158,6 +158,11 @@ PosternDelegate >> recordDashboardCleanupFailure: error [
 ]
 
 { #category : 'private' }
+PosternDelegate >> prepareToStart [
+	(self class canUnderstand: #attachObservability) ifTrue: [ self attachObservability ]
+]
+
+{ #category : 'private' }
 PosternDelegate >> recordServerStarted [
 	observability ifNotNil: [ :observer | observer serverStarted ]
 ]
