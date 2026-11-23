@@ -31,6 +31,19 @@ PosternObservabilityTest >> testEvalSignalRetainsOnlyExceptionClass [
 ]
 
 { #category : 'tests' }
+PosternObservabilityTest >> testInitializePreservesRunningServer [
+	| server pool state |
+	pool := PosternObservability classPool.
+	server := PosternServer startOn: 0.
+	[ state := #(Guard ActiveServers OwnsLog OwnsTelemetry Bridge)
+		collect: [ :key | pool at: key ].
+	  PosternObservability initialize.
+	  self assert: (#(Guard ActiveServers OwnsLog OwnsTelemetry Bridge)
+		collect: [ :key | pool at: key ]) equals: state ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
 PosternObservabilityTest >> testOnlyClosedRouteNamesAreClassified [
 	| delegate |
 	delegate := PosternDelegate new.

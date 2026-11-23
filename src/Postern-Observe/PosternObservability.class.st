@@ -63,6 +63,7 @@ PosternObservability class >> guard [
 
 { #category : 'class initialization' }
 PosternObservability class >> initialize [
+	Guard ifNotNil: [ ^ self ].
 	Guard := Mutex new.
 	ActiveServers := 0.
 	OwnsLog := false.
