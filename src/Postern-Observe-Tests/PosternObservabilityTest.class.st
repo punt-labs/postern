@@ -54,6 +54,19 @@ PosternObservabilityTest >> testOnlyClosedRouteNamesAreClassified [
 ]
 
 { #category : 'tests' }
+PosternObservabilityTest >> testRepeatedPreparationAttachesObserverOnlyOnce [
+	| delegate activeServers before |
+	delegate := PosternDelegate new.
+	activeServers := [ PosternObservability classPool at: #ActiveServers ].
+	before := activeServers value.
+	[ delegate prepareToStart.
+	  delegate prepareToStart.
+	  self assert: activeServers value equals: before + 1 ]
+		ensure: [ delegate close ].
+	self assert: activeServers value equals: before
+]
+
+{ #category : 'tests' }
 PosternObservabilityTest >> testRequestSchemaRejectsArbitraryPathsAndStatusStrings [
 	self should: [
 		(PosternRequestCountV1 new route: '/repl/private'; status: #success) asRecordAt: nil ]
