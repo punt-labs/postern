@@ -10,14 +10,14 @@ Class {
 
 { #category : 'public' }
 PosternZincServer >> start [
-	| posternDelegate |
-	posternDelegate := self delegate.
+	| currentDelegate |
+	currentDelegate := self delegate.
 	self isRunning ifTrue: [ self stop: false ].
-	[ posternDelegate prepareToStart.
+	[ (currentDelegate class canUnderstand: #prepareToStart) ifTrue: [ currentDelegate prepareToStart ].
 	  super start.
-	  posternDelegate recordServerStarted ]
+	  (currentDelegate class canUnderstand: #recordServerStarted) ifTrue: [ currentDelegate recordServerStarted ] ]
 		ifCurtailed: [
 			self isRunning
 				ifTrue: [ self stop ]
-				ifFalse: [ posternDelegate close ] ]
+				ifFalse: [ self closeDelegate ] ]
 ]
