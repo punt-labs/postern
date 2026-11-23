@@ -284,7 +284,8 @@ rebuild: stop clean-image setup
 
 filein:
 	@echo ">> Reloading Tonel packages..."
-	@$(CURL) -d "$(LOAD_PACKAGES_EXPR)"
+	@bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg"
+	@$(CURL) -d "(#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]) ifFalse: [ $(LOAD_OBSERVE_EXPR) ]. [ $(LOAD_PACKAGES_EXPR) ] value"
 	@echo ""
 
 eval:
