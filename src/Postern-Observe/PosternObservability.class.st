@@ -40,7 +40,8 @@ PosternObservability class >> dashboardCleanupFailed: error [
 
 { #category : 'private' }
 PosternObservability class >> emit: aSignal [
-	OwnsLog ifTrue: [ aSignal emit ]
+	OwnsLog ifTrue: [
+		[ aSignal emit ] on: Error do: [ :error | ^ self ] ]
 ]
 
 { #category : 'recording' }

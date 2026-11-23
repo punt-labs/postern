@@ -31,6 +31,34 @@ PosternObservabilityTest >> testEvalSignalRetainsOnlyExceptionClass [
 ]
 
 { #category : 'tests' }
+PosternObservabilityTest >> testFailingBeaconSubscriberDoesNotInterruptServerLifecycle [
+	| server subscriber seen activeServers before |
+	activeServers := [ PosternObservability classPool at: #ActiveServers ].
+	before := activeServers value.
+	subscriber := Object new.
+	seen := OrderedCollection new.
+	server := PosternZincServer on: 0.
+	server delegate: PosternDelegate new.
+	[ server delegate prepareToStart.
+	  (PosternObservability classPool at: #OwnsLog) ifFalse: [ ^ self skip ].
+	  Beacon instance announcer when: PuntLogSignal do: [ :signal |
+		(signal component = 'server' and: [ #('Server started' 'Server stopped') includes: signal message ])
+			ifTrue: [
+				seen add: signal message.
+				self error: 'Beacon subscriber failed' ] ] for: subscriber.
+	  server start.
+	  self assert: server isRunning.
+	  server stop.
+	  self assert: seen asArray equals: #('Server started' 'Server stopped').
+	  self deny: server isRunning.
+	  self assert: activeServers value equals: before ]
+		ensure: [
+			Beacon instance announcer unsubscribe: subscriber.
+			server stop.
+			server delegate close ]
+]
+
+{ #category : 'tests' }
 PosternObservabilityTest >> testInitializePreservesRunningServer [
 	| server pool state |
 	pool := PosternObservability classPool.
