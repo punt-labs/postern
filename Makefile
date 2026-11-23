@@ -246,6 +246,12 @@ stop:
 		if kill -0 $$PID 2>/dev/null; then \
 			echo ">> Stopping Pharo (PID $$PID)..."; \
 			TARGETS="$$(collect_descendants "$$PID") $$PID"; \
+			case "$$PID" in \
+				''|*[!0-9]*) ;; \
+				*) $(CURL) --noproxy localhost --max-time 3 -d \
+					"LibC uniqueInstance getpid = $$PID ifTrue: [ Smalltalk snapshot: false andQuit: true ]" \
+					>/dev/null 2>&1 || true ;; \
+			esac; \
 		fi; \
 	fi; \
 	if [ -z "$$TARGETS" ]; then \
@@ -266,7 +272,7 @@ stop:
 		kill -0 $$TARGET 2>/dev/null && kill -9 $$TARGET 2>/dev/null || true; \
 	done; \
 	rm -f $(PID_FILE); \
-	if $(HEALTHCHECK) >/dev/null 2>&1; then \
+	if $(HEALTHCHECK) --max-time 3 >/dev/null 2>&1; then \
 		echo "  FAIL Port $(PORT) is still responding after stop."; \
 		$(PORT_STATE) $(PORT) hint; \
 		exit 1; \
