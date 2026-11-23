@@ -8,7 +8,7 @@ Class {
 	#package : 'Postern-Core'
 }
 
-{ #category : 'initialize-release' }
+{ #category : 'public' }
 PosternZincServer >> start [
 	| posternDelegate |
 	posternDelegate := self delegate.
