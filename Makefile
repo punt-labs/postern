@@ -37,6 +37,7 @@ PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
 DETACH := $(CURDIR)/scripts/postern-detach
 WITH_RUNTIME_HOME := $(CURDIR)/scripts/postern-with-runtime-home
+CACHE_OBSERVE := $(CURDIR)/scripts/postern-cache-observe
 PORT_STATE := $(CURDIR)/scripts/postern-port-state
 PHARO_RUNTIME_HOME := $(CURDIR)/.tmp/pharo-home
 SRC_DIR := $(CURDIR)/src
@@ -106,7 +107,8 @@ $(VM) $(VM_UI) $(IMAGE) $(CHANGES): | $(IMAGE_DIR)
 
 setup: $(SETUP_STAMP)
 
-$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME)
+$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME) $(CACHE_OBSERVE)
+	@bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg"
 	@echo ">> Loading the observability dependency and local Tonel packages into image..."
 	$(WITH_RUNTIME_HOME) $(PHARO_RUNTIME_HOME) \
 		$(VM) $(IMAGE) eval --save "$(LOAD_OBSERVE_EXPR) [ $(LOAD_PACKAGES_EXPR) ] value"

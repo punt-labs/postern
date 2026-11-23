@@ -32,8 +32,9 @@ make setup
 make start
 ```
 
-`make setup` downloads the Pharo 12 VM and image for your machine and
-loads the Postern packages. `make start` opens the Pharo window and starts
+`make setup` downloads the Pharo 12 VM and image for your machine, uses Git
+to fetch PuntObserve and its dependencies, and loads the Postern packages.
+`make start` opens the Pharo window and starts
 the server on `http://localhost:8422`. To run without a window, use
 `make start-headless` instead.
 
