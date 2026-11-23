@@ -37,6 +37,7 @@ PID_FILE := $(CURDIR)/.pharo.pid
 LOG_FILE := $(CURDIR)/.pharo.log
 DETACH := $(CURDIR)/scripts/postern-detach
 WITH_RUNTIME_HOME := $(CURDIR)/scripts/postern-with-runtime-home
+CACHE_OBSERVE := $(CURDIR)/scripts/postern-cache-observe
 PORT_STATE := $(CURDIR)/scripts/postern-port-state
 PHARO_RUNTIME_HOME := $(CURDIR)/.tmp/pharo-home
 SRC_DIR := $(CURDIR)/src
@@ -54,6 +55,8 @@ MAKEFLAGS += --no-print-directory
 # Tonel packages — auto-discovered from src/ directories containing package.st.
 # Load order: production packages in dependency order, then test packages.
 LOAD_PACKAGES_EXPR := | dir allPkgs priority sorted lfCount | dir := '$(SRC_DIR)' asFileReference. IceRepository registry detect: [ :r | r name = 'postern' ] ifNone: [ | r | r := IceRepositoryCreator new location: '$(CURDIR)' asFileReference; createRepository. r register. r ]. allPkgs := (dir children select: [ :d | d isDirectory and: [ (d / 'package.st') exists ] ]) collect: [ :d | d basename ]. priority := Dictionary new. priority at: 'Postern-Core' put: 10. priority at: 'Postern-Dashboard' put: 15. priority at: 'Postern-IcebergExtensions' put: 15. priority at: 'BaselineOfPostern' put: 20. sorted := allPkgs sorted: [ :a :b | | pa pb | pa := (a endsWith: '-Tests') ifTrue: [ 100 ] ifFalse: [ priority at: a ifAbsent: [ 50 ] ]. pb := (b endsWith: '-Tests') ifTrue: [ 100 ] ifFalse: [ priority at: b ifAbsent: [ 50 ] ]. pa = pb ifTrue: [ a < b ] ifFalse: [ pa < pb ] ]. sorted do: [ :name | | reader version | Transcript show: 'Loading package: ', name; cr. reader := TonelReader on: dir fileName: name. version := reader version. MCPackageLoader installSnapshot: version snapshot ]. lfCount := 0. Smalltalk globals allClasses do: [ :cls | (cls package name beginsWith: 'Postern') ifTrue: [ (cls methods, cls class methods) do: [ :m | | src | src := m sourceCode. (src includesSubstring: String lf) ifTrue: [ cls compile: (src copyReplaceAll: String lf with: String cr) classified: m protocolName. lfCount := lfCount + 1 ] ] ] ]. 'Loaded ', sorted size printString, ' packages, normalized ', lfCount printString, ' methods'
+LOAD_OBSERVE_EXPR := Metacello new baseline: 'Postern'; repository: 'tonel://$(SRC_DIR)'; load: 'PuntObserve'.
+OBSERVE_LOADED_EXPR := \#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]
 
 .PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval test status shellcheck lint check check-packages transcript clean clean-image
 
@@ -105,10 +108,11 @@ $(VM) $(VM_UI) $(IMAGE) $(CHANGES): | $(IMAGE_DIR)
 
 setup: $(SETUP_STAMP)
 
-$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME)
-	@echo ">> Loading Tonel packages into image..."
+$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME) $(CACHE_OBSERVE)
+	@bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg"
+	@echo ">> Loading the observability dependency and local Tonel packages into image..."
 	$(WITH_RUNTIME_HOME) $(PHARO_RUNTIME_HOME) \
-		$(VM) $(IMAGE) eval --save "$(LOAD_PACKAGES_EXPR)"
+		$(VM) $(IMAGE) eval --save "$(LOAD_OBSERVE_EXPR) [ $(LOAD_PACKAGES_EXPR) ] value"
 	@touch $(SETUP_STAMP)
 	@echo "  ok All packages loaded and image saved"
 
@@ -243,6 +247,12 @@ stop:
 		if kill -0 $$PID 2>/dev/null; then \
 			echo ">> Stopping Pharo (PID $$PID)..."; \
 			TARGETS="$$(collect_descendants "$$PID") $$PID"; \
+			case "$$PID" in \
+				''|*[!0-9]*) ;; \
+				*) $(CURL) --noproxy localhost --max-time 3 -d \
+					"LibC uniqueInstance getpid = $$PID ifTrue: [ Smalltalk snapshot: false andQuit: true ]" \
+					>/dev/null 2>&1 || true ;; \
+			esac; \
 		fi; \
 	fi; \
 	if [ -z "$$TARGETS" ]; then \
@@ -263,7 +273,7 @@ stop:
 		kill -0 $$TARGET 2>/dev/null && kill -9 $$TARGET 2>/dev/null || true; \
 	done; \
 	rm -f $(PID_FILE); \
-	if $(HEALTHCHECK) >/dev/null 2>&1; then \
+	if $(HEALTHCHECK) --max-time 3 >/dev/null 2>&1; then \
 		echo "  FAIL Port $(PORT) is still responding after stop."; \
 		$(PORT_STATE) $(PORT) hint; \
 		exit 1; \
@@ -281,7 +291,13 @@ rebuild: stop clean-image setup
 
 filein:
 	@echo ">> Reloading Tonel packages..."
-	@$(CURL) -d "$(LOAD_PACKAGES_EXPR)"
+	@loaded=$$($(CURL) -f -d "$(OBSERVE_LOADED_EXPR)") || exit 1; \
+	case "$$loaded" in \
+		true) ;; \
+		false) bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg" || exit $$? ;; \
+		*) echo "  FAIL Could not check whether PuntObserve is loaded."; exit 1 ;; \
+	esac
+	@$(CURL) -d "($(OBSERVE_LOADED_EXPR)) ifFalse: [ $(LOAD_OBSERVE_EXPR) ]. [ $(LOAD_PACKAGES_EXPR) ] value"
 	@echo ""
 
 eval:

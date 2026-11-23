@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cache_dir=$1
+
+# Use Git's configured transport before Metacello loads from the Iceberg cache.
+cache_repository() {
+    local repository=$1 destination="$cache_dir/$1"
+    if [[ ! -d "$destination/.git" ]]; then
+        git clone "https://github.com/$repository.git" "$destination"
+    fi
+}
+
+cache_repository punt-labs/punt-observe-pharo
+cache_repository pharo-rdbms/Pharo-SQLite3
+cache_repository Gabriel-Darbord/opentelemetry-pharo
+cache_repository Gabriel-Darbord/grpc-pharo
+cache_repository jecisc/PharoBackwardCompatibility

@@ -32,8 +32,9 @@ make setup
 make start
 ```
 
-`make setup` downloads the Pharo 12 VM and image for your machine and
-loads the Postern packages. `make start` opens the Pharo window and starts
+`make setup` downloads the Pharo 12 VM and image for your machine, uses Git
+to fetch PuntObserve and its dependencies, and loads the Postern packages.
+`make start` opens the Pharo window and starts
 the server on `http://localhost:8422`. To run without a window, use
 `make start-headless` instead.
 
@@ -74,6 +75,22 @@ read [Security](#security).
 - **Dashboard** --- `PosternDashboard` shows each request's method, path, status, duration, and a body snippet.
 - **Iceberg sync** --- Iceberg is Pharo's Git client. Postern adds a command that clears the false "dirty" state Iceberg shows after you commit or merge with command-line `git`.
 - **Optional token auth** --- local-only mode can run without a token; listening on all network interfaces always requires one.
+
+## Logs and telemetry
+
+On Linux and macOS, the server writes private diagnostics to
+`~/.punt-labs/postern/logs/postern.log` with up to five rotated backups.
+Set `POSTERN_LOG_LEVEL=debug` for Zinc event types and eval outcomes, or
+`POSTERN_LOG=off` to disable the durable log. The dashboard's in-memory
+request buffer is separate.
+
+Postern also records local usage counters in
+`~/.punt-labs/postern/telemetry.db`: server starts, requests by named route
+and status class, and eval outcomes. It records no request URLs, auth tokens,
+eval source, or result bodies, and does not export telemetry over the network.
+Set `POSTERN_TELEMETRY=off` or `PUNT_TELEMETRY=off` before startup to disable it.
+The observability sinks are not started on Windows. For an embedded install
+without observability, load the `Postern-Core` group/package explicitly.
 
 ## What It Looks Like
 

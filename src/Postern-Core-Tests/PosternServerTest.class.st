@@ -220,6 +220,24 @@ PosternServerTest >> testRequestLoggerLazyInitResolvesDashboardClass [
 ]
 
 { #category : 'tests' }
+PosternServerTest >> testRestartWithCustomDelegate [
+	| server delegate response |
+	server := PosternServer startOn: 0.
+	[ server stop.
+	  delegate := ZnDefaultServerDelegate new.
+	  delegate map: 'custom' to: [ :request | ZnResponse ok: (ZnEntity text: 'custom delegate') ].
+	  server delegate: delegate.
+	  server start.
+	  response := ZnClient new
+		url: 'http://localhost:', server port printString, '/custom';
+		get;
+		response.
+	  self assert: response status equals: 200.
+	  self assert: response entity contents equals: 'custom delegate' ]
+		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
 PosternServerTest >> testStartOnBindsToLoopback [
 	"startOn: must bind to loopback only."
 	| server |
