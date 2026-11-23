@@ -56,6 +56,7 @@ MAKEFLAGS += --no-print-directory
 # Load order: production packages in dependency order, then test packages.
 LOAD_PACKAGES_EXPR := | dir allPkgs priority sorted lfCount | dir := '$(SRC_DIR)' asFileReference. IceRepository registry detect: [ :r | r name = 'postern' ] ifNone: [ | r | r := IceRepositoryCreator new location: '$(CURDIR)' asFileReference; createRepository. r register. r ]. allPkgs := (dir children select: [ :d | d isDirectory and: [ (d / 'package.st') exists ] ]) collect: [ :d | d basename ]. priority := Dictionary new. priority at: 'Postern-Core' put: 10. priority at: 'Postern-Dashboard' put: 15. priority at: 'Postern-IcebergExtensions' put: 15. priority at: 'BaselineOfPostern' put: 20. sorted := allPkgs sorted: [ :a :b | | pa pb | pa := (a endsWith: '-Tests') ifTrue: [ 100 ] ifFalse: [ priority at: a ifAbsent: [ 50 ] ]. pb := (b endsWith: '-Tests') ifTrue: [ 100 ] ifFalse: [ priority at: b ifAbsent: [ 50 ] ]. pa = pb ifTrue: [ a < b ] ifFalse: [ pa < pb ] ]. sorted do: [ :name | | reader version | Transcript show: 'Loading package: ', name; cr. reader := TonelReader on: dir fileName: name. version := reader version. MCPackageLoader installSnapshot: version snapshot ]. lfCount := 0. Smalltalk globals allClasses do: [ :cls | (cls package name beginsWith: 'Postern') ifTrue: [ (cls methods, cls class methods) do: [ :m | | src | src := m sourceCode. (src includesSubstring: String lf) ifTrue: [ cls compile: (src copyReplaceAll: String lf with: String cr) classified: m protocolName. lfCount := lfCount + 1 ] ] ] ]. 'Loaded ', sorted size printString, ' packages, normalized ', lfCount printString, ' methods'
 LOAD_OBSERVE_EXPR := Metacello new baseline: 'Postern'; repository: 'tonel://$(SRC_DIR)'; load: 'PuntObserve'.
+OBSERVE_LOADED_EXPR := \#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]
 
 .PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval test status shellcheck lint check check-packages transcript clean clean-image
 
@@ -290,8 +291,13 @@ rebuild: stop clean-image setup
 
 filein:
 	@echo ">> Reloading Tonel packages..."
-	@bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg"
-	@$(CURL) -d "(#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]) ifFalse: [ $(LOAD_OBSERVE_EXPR) ]. [ $(LOAD_PACKAGES_EXPR) ] value"
+	@loaded=$$($(CURL) -f -d "$(OBSERVE_LOADED_EXPR)") || exit 1; \
+	case "$$loaded" in \
+		true) ;; \
+		false) bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg" || exit $$? ;; \
+		*) echo "  FAIL Could not check whether PuntObserve is loaded."; exit 1 ;; \
+	esac
+	@$(CURL) -d "($(OBSERVE_LOADED_EXPR)) ifFalse: [ $(LOAD_OBSERVE_EXPR) ]. [ $(LOAD_PACKAGES_EXPR) ] value"
 	@echo ""
 
 eval:
