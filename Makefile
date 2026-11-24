@@ -62,6 +62,7 @@ LOAD_OBSERVE_EXPR := Metacello new baseline: 'Postern'; repository: 'tonel://$(S
 OBSERVE_LOADED_EXPR := \#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]
 
 .PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval eval-token-path test status shellcheck lint check check-packages transcript clean clean-image
+.PHONY: .launch-start .launch-start-headless
 
 # ── Setup ──────────────────────────────────────────────
 
@@ -122,7 +123,23 @@ $(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME) $(CACHE_
 
 # ── Run ────────────────────────────────────────────────
 
-start: $(SETUP_STAMP)
+start start-headless:
+	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
+		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
+	elif $(HEALTHCHECK) >/dev/null 2>&1; then \
+		echo "  FAIL An eval server is already responding on port $(PORT)."; \
+		echo "       Stop the existing listener or choose another port with 'make PORT=8432 $@'."; \
+		exit 1; \
+	elif $(PORT_STATE) $(PORT) in-use; then \
+		echo "  FAIL Port $(PORT) is already in use."; \
+		$(PORT_STATE) $(PORT) hint; \
+		echo "       Stop the existing listener or choose another port with 'make PORT=8432 $@'."; \
+		exit 1; \
+	else \
+		$(MAKE) .launch-$@; \
+	fi
+
+.launch-start: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
@@ -180,7 +197,7 @@ start: $(SETUP_STAMP)
 		exit 1; \
 	fi
 
-start-headless: $(SETUP_STAMP)
+.launch-start-headless: $(SETUP_STAMP)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "Pharo already running (PID $$(cat $(PID_FILE)))"; \
 	else \
