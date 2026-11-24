@@ -37,7 +37,9 @@ curl -s -X POST http://localhost:8422/repl \
 # → 7
 ```
 
-If auth is enabled, add `-H "X-Eval-Token: $(cat .tmp/eval-token)"`.
+If auth is enabled in a checkout-launched image, read the token from
+`$(make eval-token-path)` and send it as the `X-Eval-Token` header. For a
+standalone image, the token is in `~/.punt-labs/postern/eval-token`.
 
 ## Agent Permissions / Config
 
@@ -86,7 +88,7 @@ If calls to `localhost:8422` fail unexpectedly, check agent permissions first
 before assuming the Postern server is down.
 
 `make setup` and the startup targets fall back to a repo-local runtime home
-under `.tmp/pharo-home` when the normal Pharo config directories are not
+under `.punt-labs/local/postern/pharo-home` when the normal Pharo config directories are not
 writable, so agents usually do not need to override `HOME` manually.
 
 ## Ethos & Delegation

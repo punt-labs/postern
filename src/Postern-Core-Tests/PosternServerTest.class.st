@@ -10,10 +10,14 @@ Class {
 
 { #category : 'tests' }
 PosternServerTest >> testAuthAcceptsWithCorrectToken [
-	| server delegate response |
+	| server delegate response tokenFile |
 	server := PosternServer startOn: 8499 withAuth: true.
 	delegate := server delegate.
-	[ response := ZnClient new
+	[ tokenFile := PosternServer tokenFile.
+	self assert: [ tokenFile contents = delegate token ].
+	Smalltalk os isUnix ifTrue: [
+		self assert: tokenFile permissions posixPermission equals: 8r600 ].
+	response := ZnClient new
 		url: 'http://localhost:8499/repl';
 		headerAt: 'X-Eval-Token' put: delegate token;
 		entity: (ZnEntity text: '3 + 4');
@@ -235,6 +239,32 @@ PosternServerTest >> testRestartWithCustomDelegate [
 	  self assert: response status equals: 200.
 	  self assert: response entity contents equals: 'custom delegate' ]
 		ensure: [ server stop ]
+]
+
+{ #category : 'tests' }
+PosternServerTest >> testRuntimeDirectoryForCheckout [
+	| checkout home |
+	checkout := FileSystem workingDirectory.
+	home := FileLocator home asFileReference.
+	self
+		assert: (PosternServer runtimeDirectoryFor: checkout fullName home: home)
+		equals: checkout / '.punt-labs' / 'local' / 'postern'
+]
+
+{ #category : 'tests' }
+PosternServerTest >> testRuntimeDirectoryForStandaloneImage [
+	| home |
+	home := FileLocator home asFileReference.
+	self
+		assert: (PosternServer runtimeDirectoryFor: nil home: home)
+		equals: home / '.punt-labs' / 'postern'
+]
+
+{ #category : 'tests' }
+PosternServerTest >> testRuntimeDirectoryRejectsRelativeCheckout [
+	self
+		should: [ PosternServer runtimeDirectoryFor: 'relative-checkout' home: FileLocator home ]
+		raise: Error
 ]
 
 { #category : 'tests' }

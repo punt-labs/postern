@@ -60,7 +60,7 @@ The response is `ok`.
   `make PORT=8432 start-headless`.
 - If Pharo cannot write to its usual configuration directories (for
   example inside a Codex or Claude Code sandbox), Postern uses
-  `.tmp/pharo-home` in the repository instead.
+  `.punt-labs/local/postern/pharo-home` in the repository instead.
 
 </details>
 
@@ -154,12 +154,24 @@ evaluate one of these in the image:
 | `PosternServer startOn: 8422 withAuth: true` | localhost | required |
 | `PosternServer startPublicOn: 8422` | all interfaces | required |
 
-There is no mode that listens on all interfaces without auth. When auth
-is on, the server writes a random token to `.tmp/eval-token`, and `/repl`
-requires that token in an `X-Eval-Token` header:
+There is no mode that listens on all interfaces without auth. When auth is
+on, `/repl` requires the token in an `X-Eval-Token` header. Discover the
+location with `PosternServer tokenFile` inside the image:
+
+- For an image launched by make, run `make eval-token-path` from the checkout
+  to find `.punt-labs/local/postern/eval-token`.
+- A standalone image writes to `~/.punt-labs/postern/eval-token` regardless of
+  its working directory. To bind a custom launch to a checkout instead,
+  set `POSTERN_CHECKOUT` to the checkout's absolute path before starting Pharo.
 
 ```bash
-curl -s -X POST http://localhost:8422/repl -H "Content-Type: text/plain" -H "X-Eval-Token: $(cat .tmp/eval-token)" -d "3 + 4"
+# Checkout-launched image with auth enabled
+TOKEN_FILE=$(make eval-token-path)
+curl -fsS -X POST http://localhost:8422/repl \
+  -H "Content-Type: text/plain" \
+  -H @- -d "3 + 4" <<EOF
+X-Eval-Token: $(cat "$TOKEN_FILE")
+EOF
 ```
 
 ### Dashboard

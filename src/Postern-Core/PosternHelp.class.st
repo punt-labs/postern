@@ -150,7 +150,10 @@ curl -s -X POST http://localhost:8422/repl \
 
 When the server starts with auth (`PosternServer startOn: 8422
 withAuth: true`), it generates an 8-character hex token and writes
-it to `.tmp/eval-token`. Read that file and add the `X-Eval-Token`
+it to the file reported by `PosternServer tokenFile`. For a checkout
+started by make, use `make eval-token-path` (under
+`.punt-labs/local/postern/`). For a standalone image, read
+`~/.punt-labs/postern/eval-token`. Add the token to the `X-Eval-Token`
 header explicitly in your client requests. The default `make start`
 and `make start-headless` targets do not enable auth.
 
@@ -194,7 +197,7 @@ curl -s -X POST http://localhost:8422/repl \
 "Start without auth"
 PosternServer startOn: 8422.
 
-"Start with auth (token written to .tmp/eval-token)"
+"Start with auth (see PosternServer tokenFile)"
 PosternServer startOn: 8422 withAuth: true.
 
 "From the CLI"
@@ -1013,7 +1016,7 @@ source to CR (Pharo''s internal convention).
 
 If Pharo cannot write to its usual user config directory during
 `make setup` (for example in a restricted agent sandbox), Postern
-falls back to a repo-local runtime home under `.tmp/pharo-home`.
+falls back to a repo-local runtime home under `.punt-labs/local/postern/pharo-home`.
 `make clean-image` and `make clean` remove that fallback directory.
 
 On Windows ARM64, `make setup` automatically uses the Windows

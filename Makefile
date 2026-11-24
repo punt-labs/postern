@@ -39,7 +39,9 @@ DETACH := $(CURDIR)/scripts/postern-detach
 WITH_RUNTIME_HOME := $(CURDIR)/scripts/postern-with-runtime-home
 CACHE_OBSERVE := $(CURDIR)/scripts/postern-cache-observe
 PORT_STATE := $(CURDIR)/scripts/postern-port-state
-PHARO_RUNTIME_HOME := $(CURDIR)/.tmp/pharo-home
+POSTERN_CHECKOUT := $(CURDIR)
+CHECKOUT_STATE := $(POSTERN_CHECKOUT)/.punt-labs/local/postern
+PHARO_RUNTIME_HOME := $(CHECKOUT_STATE)/pharo-home
 SRC_DIR := $(CURDIR)/src
 URL := http://localhost:$(PORT)/repl
 HEALTH_URL := http://localhost:$(PORT)/health
@@ -58,7 +60,7 @@ LOAD_PACKAGES_EXPR := | dir allPkgs priority sorted lfCount | dir := '$(SRC_DIR)
 LOAD_OBSERVE_EXPR := Metacello new baseline: 'Postern'; repository: 'tonel://$(SRC_DIR)'; load: 'PuntObserve'.
 OBSERVE_LOADED_EXPR := \#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]
 
-.PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval test status shellcheck lint check check-packages transcript clean clean-image
+.PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval eval-token-path test status shellcheck lint check check-packages transcript clean clean-image
 
 # ── Setup ──────────────────────────────────────────────
 
@@ -76,6 +78,7 @@ help:
 		"  make rebuild      Recreate the disposable image from scratch" \
 		"  make filein       Reload Tonel packages into the running image" \
 		"  make eval         Send Smalltalk from stdin to the eval server" \
+		"  make eval-token-path  Print the checkout's token file path (not its contents)" \
 		"  make test         Run all Postern tests" \
 		"  make shellcheck   Run shellcheck on repo scripts" \
 		"  make lint         Run shellcheck and Renraku lint" \
@@ -111,7 +114,7 @@ setup: $(SETUP_STAMP)
 $(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME) $(CACHE_OBSERVE)
 	@bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg"
 	@echo ">> Loading the observability dependency and local Tonel packages into image..."
-	$(WITH_RUNTIME_HOME) $(PHARO_RUNTIME_HOME) \
+	POSTERN_CHECKOUT="$(POSTERN_CHECKOUT)" $(WITH_RUNTIME_HOME) "$(PHARO_RUNTIME_HOME)" \
 		$(VM) $(IMAGE) eval --save "$(LOAD_OBSERVE_EXPR) [ $(LOAD_PACKAGES_EXPR) ] value"
 	@touch $(SETUP_STAMP)
 	@echo "  ok All packages loaded and image saved"
@@ -144,7 +147,7 @@ start: $(SETUP_STAMP)
 		fi; \
 		echo ">> Starting Pharo UI on port $(PORT)..."; \
 		rm -f $(PID_FILE); \
-		$(DETACH) $(PID_FILE) $(LOG_FILE) $(PHARO_RUNTIME_HOME) \
+		POSTERN_CHECKOUT="$(POSTERN_CHECKOUT)" $(DETACH) $(PID_FILE) $(LOG_FILE) "$(PHARO_RUNTIME_HOME)" \
 			$(VM_UI) $(IMAGE) eval --no-quit \
 			"PosternServer startOn: $(PORT)"; \
 		for i in $$(seq 1 30); do \
@@ -193,7 +196,7 @@ start-headless: $(SETUP_STAMP)
 		fi; \
 		echo ">> Starting Pharo headlessly on port $(PORT)..."; \
 		rm -f $(PID_FILE); \
-		$(DETACH) $(PID_FILE) $(LOG_FILE) $(PHARO_RUNTIME_HOME) \
+		POSTERN_CHECKOUT="$(POSTERN_CHECKOUT)" $(DETACH) $(PID_FILE) $(LOG_FILE) "$(PHARO_RUNTIME_HOME)" \
 			$(VM) $(IMAGE) eval --no-quit \
 			"PosternServer startOn: $(PORT)"; \
 		for i in $$(seq 1 30); do \
@@ -304,6 +307,9 @@ eval:
 	@if [ -t 0 ]; then echo "Type Smalltalk, Ctrl-D to send:"; fi
 	@$(CURL) -d @- || echo "Error: is the server running? (make start for GUI, or make start-headless)"
 
+eval-token-path:
+	@printf '%s\n' "$(CHECKOUT_STATE)/eval-token"
+
 test:
 	@echo ">> Running Postern tests..."
 	@$(CURL) -d \
@@ -411,11 +417,11 @@ clean-image:
 	rm -f $(SETUP_STAMP)
 	rm -f $(IMAGE_DIR)/.pharo-bootstrap
 	rm -f $(IMAGE_DIR)/PharoDebug.log
-	rm -rf $(PHARO_RUNTIME_HOME)
+	rm -rf "$(PHARO_RUNTIME_HOME)"
 	@echo "  ok Image removed"
 
 clean:
 	$(MAKE) stop 2>/dev/null || true
-	rm -rf $(IMAGE_DIR) $(PID_FILE) $(LOG_FILE) $(PHARO_RUNTIME_HOME)
+	rm -rf $(IMAGE_DIR) $(PID_FILE) $(LOG_FILE) "$(PHARO_RUNTIME_HOME)"
 	rm -f PharoDebug.log
 	@echo "  ok Clean"

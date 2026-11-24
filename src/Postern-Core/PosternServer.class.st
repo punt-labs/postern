@@ -7,8 +7,8 @@ Binding and authentication policy:
 
 Usage:
   PosternServer startOn: 8422.                   ""loopback, no auth""
-  PosternServer startOn: 8422 withAuth: true.    ""loopback, auth required; token in .tmp/eval-token""
-  PosternServer startPublicOn: 8422.             ""all interfaces, auth required; token in .tmp/eval-token""
+  PosternServer startOn: 8422 withAuth: true.    ""loopback, auth required; see PosternServer tokenFile""
+  PosternServer startPublicOn: 8422.             ""all interfaces, auth required; see PosternServer tokenFile""
 
 ### Examples
 
@@ -24,14 +24,15 @@ Class {
 
 { #category : 'private' }
 PosternServer class >> enableAuthFor: delegate [
-	| token |
+	| token file |
 	token := self generateToken.
+	file := self tokenFile.
+	file ensureDelete; ensureCreateFile.
+	Smalltalk os isUnix ifTrue: [
+		file permissions: (FileSystemPermission posixPermissions: 8r600) ].
+	file writeStreamDo: [ :stream | stream nextPutAll: token ].
 	delegate token: token.
-	delegate authEnabled: true.
-	'.tmp' asFileReference ensureCreateDirectory.
-	('.tmp/eval-token' asFileReference)
-		ensureDelete;
-		writeStreamDo: [ :s | s nextPutAll: token ]
+	delegate authEnabled: true
 ]
 
 { #category : 'private' }
@@ -43,6 +44,19 @@ PosternServer class >> generateToken [
 	1 to: 8 do: [ :i |
 		hex at: i put: (chars at: (rng nextInteger: 16)) ].
 	^ hex
+]
+
+{ #category : 'private' }
+PosternServer class >> runtimeDirectoryFor: checkout home: home [
+	| directory |
+	checkout ifNil: [
+		directory := home asFileReference.
+		directory isAbsolute ifFalse: [ self error: 'Postern needs an absolute home directory' ].
+		^ directory / '.punt-labs' / 'postern' ].
+	directory := checkout asFileReference.
+	(directory isAbsolute and: [ directory isDirectory ])
+		ifFalse: [ self error: 'POSTERN_CHECKOUT must be an existing absolute directory' ].
+	^ directory / '.punt-labs' / 'local' / 'postern'
 ]
 
 { #category : 'instance creation' }
@@ -75,4 +89,11 @@ PosternServer class >> startOn: port withAuth: aBoolean [
 PosternServer class >> startPublicOn: port [
 	"Start on all interfaces with mandatory authentication."
 	^ self startOn: port address: nil withAuth: true
+]
+
+{ #category : 'accessing' }
+PosternServer class >> tokenFile [
+	| checkout |
+	checkout := OSEnvironment current at: 'POSTERN_CHECKOUT' ifAbsent: [ nil ].
+	^ (self runtimeDirectoryFor: checkout home: FileLocator home) / 'eval-token'
 ]
