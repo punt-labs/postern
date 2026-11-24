@@ -43,6 +43,7 @@ POSTERN_CHECKOUT := $(CURDIR)
 CHECKOUT_STATE := $(POSTERN_CHECKOUT)/.punt-labs/local/postern
 PHARO_RUNTIME_HOME := $(CHECKOUT_STATE)/pharo-home
 SRC_DIR := $(CURDIR)/src
+POSTERN_CORE_SOURCES := $(wildcard $(SRC_DIR)/Postern-Core/*.st)
 URL := http://localhost:$(PORT)/repl
 HEALTH_URL := http://localhost:$(PORT)/health
 CURL := curl -s -X POST $(URL) -H "Content-Type: text/plain"
@@ -111,7 +112,7 @@ $(VM) $(VM_UI) $(IMAGE) $(CHANGES): | $(IMAGE_DIR)
 
 setup: $(SETUP_STAMP)
 
-$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME) $(CACHE_OBSERVE)
+$(SETUP_STAMP): $(VM) $(VM_UI) $(IMAGE) $(CHANGES) $(WITH_RUNTIME_HOME) $(CACHE_OBSERVE) $(POSTERN_CORE_SOURCES)
 	@bash "$(CACHE_OBSERVE)" "$(IMAGE_DIR)/pharo-local/iceberg"
 	@echo ">> Loading the observability dependency and local Tonel packages into image..."
 	POSTERN_CHECKOUT="$(POSTERN_CHECKOUT)" $(WITH_RUNTIME_HOME) "$(PHARO_RUNTIME_HOME)" \
