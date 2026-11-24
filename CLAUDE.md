@@ -49,7 +49,7 @@ Metacello new
   HTTP). Loopback-only by default. `startOn:` and `startOn:withAuth:`
   bind to localhost; `startPublicOn:` binds to all interfaces and always
   requires a token. `/health` and `/help` are unauthenticated; `/repl`
-  uses an `X-Eval-Token` header read from `.tmp/eval-token`.
+  uses an `X-Eval-Token` header when auth is enabled.
 - **Live `/help` system** — help content is generated from the loaded
   image, not static markdown. `/help/api`, `/help/browse`, `/help/pharo`,
   `/help/dispatch`, `/help/lint`, `/help/git`, `/help/testing`,
@@ -128,8 +128,10 @@ Binding modes:
 | `PosternServer startOn: 8422 withAuth: true` | loopback | required |
 | `PosternServer startPublicOn: 8422` | all interfaces | required (always) |
 
-There is no unauthenticated public mode. The token is written to
-`.tmp/eval-token`; clients read it and pass it back as `X-Eval-Token`.
+There is no unauthenticated public mode. `PosternServer tokenFile` resolves
+the credential location. Use `make eval-token-path` for a checkout-launched
+image or `~/.punt-labs/postern/eval-token` for a standalone image. Clients
+read that file and pass its contents as `X-Eval-Token`.
 
 ## Pharo 12 Standards
 
