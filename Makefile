@@ -20,6 +20,7 @@
 #   make test       — run Postern tests
 #   make status     — health check
 #   make shellcheck — shellcheck repo scripts
+#   make handoff-runtime — install the pinned Ethos handoff snapshot runtime
 #   make lint       — shellcheck repo scripts + lint all Postern classes
 #   make check      — verify all packages loaded + Iceberg working copy clean
 #   make transcript — read Pharo Transcript
@@ -61,7 +62,7 @@ LOAD_PACKAGES_EXPR := | dir allPkgs priority sorted lfCount | dir := '$(SRC_DIR)
 LOAD_OBSERVE_EXPR := Metacello new baseline: 'Postern'; repository: 'tonel://$(SRC_DIR)'; load: 'PuntObserve'.
 OBSERVE_LOADED_EXPR := \#('PuntObserve-Core' 'PuntObserve-Logging' 'PuntObserve-Telemetry') allSatisfy: [ :name | Smalltalk packageOrganizer hasPackage: name ]
 
-.PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval eval-token-path test status shellcheck lint check check-packages transcript clean clean-image
+.PHONY: help bootstrap setup start start-headless start-ui stop rebuild filein eval eval-token-path test status shellcheck lint check check-packages handoff-runtime transcript clean clean-image
 .PHONY: .launch-start .launch-start-headless
 
 # ── Setup ──────────────────────────────────────────────
@@ -86,6 +87,7 @@ help:
 		"  make lint         Run shellcheck and Renraku lint" \
 		"  make status       Check the eval server and loaded class count" \
 		"  make check        Verify packages are loaded and Iceberg is clean" \
+		"  make handoff-runtime  Install the pinned Ethos handoff snapshot runtime" \
 		"  make transcript   Print the Pharo Transcript" \
 		"  make clean-image  Remove the disposable image, logs, setup state, and runtime home" \
 		"  make clean        Remove the entire downloaded Pharo workspace"
@@ -364,6 +366,9 @@ shellcheck:
 	@echo ">> Running shellcheck..."
 	@shellcheck $(SHELL_SCRIPTS)
 	@echo "  ok Shell scripts clean"
+
+handoff-runtime:
+	@scripts/postern-handoff-runtime install
 
 lint: shellcheck
 	@echo ">> Linting Postern classes..."

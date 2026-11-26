@@ -1,0 +1,84 @@
+{
+  "checks": {
+    "shellcheck-handoff": {
+      "profile": "linux-worktree-v1",
+      "epoch": "postern-handoff-v1",
+      "sources": {
+        "mode": "worktree"
+      },
+      "runtime": {
+        "platforms": {
+          "darwin-amd64": {
+            "bundle": "postern-handoff-darwin-amd64.tar.gz",
+            "sha256": "e1e292dbda6acca0a896de813e9759b79f91a4c6575abf121f36a50d3475a7e7",
+            "url": "https://github.com/punt-labs/postern/releases/download/handoff-runtime-v1/postern-handoff-darwin-amd64.tar.gz",
+            "path": [
+              "{runtime}/bin"
+            ]
+          },
+          "darwin-arm64": {
+            "bundle": "postern-handoff-darwin-arm64.tar.gz",
+            "sha256": "cdbaf0add36ba5c3b3b1ad795929ab698cfbe19ba2c6a0555ae0226706b0244e",
+            "url": "https://github.com/punt-labs/postern/releases/download/handoff-runtime-v1/postern-handoff-darwin-arm64.tar.gz",
+            "path": [
+              "{runtime}/bin"
+            ]
+          },
+          "linux-amd64": {
+            "bundle": "postern-handoff-linux-amd64.tar.gz",
+            "sha256": "7caa55907ee270689aee56e60685dfde4f0de0813109f4ddb8746d43a14b3418",
+            "url": "https://github.com/punt-labs/postern/releases/download/handoff-runtime-v1/postern-handoff-linux-amd64.tar.gz",
+            "path": [
+              "{runtime}/bin"
+            ]
+          }
+        }
+      },
+      "system": {
+        "tools": [
+          "sh"
+        ]
+      }
+    },
+    "markdownlint-handoff": {
+      "profile": "linux-worktree-v1",
+      "epoch": "postern-handoff-v1",
+      "sources": {
+        "mode": "worktree"
+      },
+      "runtime": {
+        "platforms": {
+          "darwin-amd64": {
+            "bundle": "postern-handoff-darwin-amd64.tar.gz",
+            "sha256": "e1e292dbda6acca0a896de813e9759b79f91a4c6575abf121f36a50d3475a7e7",
+            "url": "https://github.com/punt-labs/postern/releases/download/handoff-runtime-v1/postern-handoff-darwin-amd64.tar.gz",
+            "path": [
+              "{runtime}/bin"
+            ]
+          },
+          "darwin-arm64": {
+            "bundle": "postern-handoff-darwin-arm64.tar.gz",
+            "sha256": "cdbaf0add36ba5c3b3b1ad795929ab698cfbe19ba2c6a0555ae0226706b0244e",
+            "url": "https://github.com/punt-labs/postern/releases/download/handoff-runtime-v1/postern-handoff-darwin-arm64.tar.gz",
+            "path": [
+              "{runtime}/bin"
+            ]
+          },
+          "linux-amd64": {
+            "bundle": "postern-handoff-linux-amd64.tar.gz",
+            "sha256": "7caa55907ee270689aee56e60685dfde4f0de0813109f4ddb8746d43a14b3418",
+            "url": "https://github.com/punt-labs/postern/releases/download/handoff-runtime-v1/postern-handoff-linux-amd64.tar.gz",
+            "path": [
+              "{runtime}/bin"
+            ]
+          }
+        }
+      },
+      "system": {
+        "tools": [
+          "sh"
+        ]
+      }
+    }
+  }
+}
