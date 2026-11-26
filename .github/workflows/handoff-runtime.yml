@@ -83,7 +83,14 @@ jobs:
     needs: build
     permissions:
       contents: read
-    runs-on: macos-15
+    strategy:
+      matrix:
+        include:
+          - runner: macos-15
+            platform: darwin-arm64
+          - runner: macos-15-intel
+            platform: darwin-amd64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,12 +101,14 @@ jobs:
           name: runtime
           path: runtime-assets
       - name: Run the handoff gate offline from the macOS bundle
+        env:
+          PLATFORM: ${{ matrix.platform }}
         run: |
           scratch=$(mktemp -d)
           trap 'rm -rf "$scratch"' EXIT
           mkdir "$scratch/runtime" "$scratch/home" "$scratch/tmp"
-          (cd runtime-assets && shasum -a 256 --check postern-handoff-darwin-arm64.tar.gz.sha256)
-          tar -xzf runtime-assets/postern-handoff-darwin-arm64.tar.gz -C "$scratch/runtime"
+          (cd runtime-assets && shasum -a 256 --check postern-handoff-$PLATFORM.tar.gz.sha256)
+          tar -xzf "runtime-assets/postern-handoff-$PLATFORM.tar.gz" -C "$scratch/runtime"
           shell=()
           while IFS= read -r f; do shell+=("$f"); done < <(git ls-files 'scripts/*' '*.sh')
           markdown=()

@@ -57,6 +57,12 @@ platform_assets() {
       SHELLCHECK_DIST=shellcheck-v$SHELLCHECK_VERSION.darwin.aarch64
       SHELLCHECK_SHA256=56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79
       ;;
+    darwin-amd64)
+      NODE_DIST=node-v$NODE_VERSION-darwin-x64
+      NODE_SHA256=4daeec962855c1a6e66cda398a25037319dc1bbd4a0939188b3547afbbfb6490
+      SHELLCHECK_DIST=shellcheck-v$SHELLCHECK_VERSION.darwin.x86_64
+      SHELLCHECK_SHA256=3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6
+      ;;
     *) die "no pinned runtime for platform $1" ;;
   esac
 }
