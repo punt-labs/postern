@@ -65,10 +65,12 @@ with `runtime-missing` and asks you to run the gate yourself.
 
 The bundle is reproducible: `scripts/postern-handoff-runtime release OUT`
 rebuilds every pinned platform and fails if any digest moved. To change a
-pinned tool, update the script or lock file, rerun `release`, copy the new
-digests into the profile with a new `handoff-runtime-vN` URL and a new
-`epoch`, and after merge run the Handoff runtime workflow on `main` with
-that tag to publish the assets.
+pinned tool, update the script or lock file and print each platform's new
+digest with `scripts/postern-handoff-runtime build PLATFORM OUT` (`build`
+does not check the old pin). Copy the digests into the profile with a new
+`handoff-runtime-vN` URL and a new `epoch`, confirm them with `release`,
+and after merge run the Handoff runtime workflow on `main` with that tag to
+publish the assets.
 
 ## Source Completeness
 
