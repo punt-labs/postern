@@ -28,13 +28,20 @@ die() {
 }
 
 usage() {
-  printf '%s\n' "usage: $0 build PLATFORM OUT | release OUT | install" >&2
+  printf '%s\n' "usage: $0 build PLATFORM OUT | release OUT | install"
+}
+
+usage_error() {
+  usage >&2
   exit 64
 }
 
-for tool in curl tar python3 npm; do
-  command -v "$tool" >/dev/null 2>&1 || die "$tool is required"
-done
+require() {
+  local tool
+  for tool in "$@"; do
+    command -v "$tool" >/dev/null 2>&1 || die "$tool is required"
+  done
+}
 
 platform_assets() {
   case "$1" in
@@ -104,6 +111,7 @@ PY
 
 build() {
   local platform=$1 out=$2 work stage
+  require curl tar python3 npm
   platform_assets "$platform"
   work=$(mktemp -d)
   # shellcheck disable=SC2064  # expand $work now; it is local to build
@@ -163,6 +171,7 @@ PY
 }
 
 pinned_platforms() {
+  require python3
   python3 - "$PROFILE" <<'PY'
 import json, sys
 checks = json.load(open(sys.argv[1]))["checks"]
@@ -186,6 +195,7 @@ release() {
 
 install() {
   local platform sha url store dest tmp
+  require curl python3
   platform=$(host_platform)
   sha=$(pin "$platform" sha256)
   url=$(pin "$platform" url)
@@ -212,18 +222,21 @@ install() {
 }
 
 case "${1:-}" in
+  -h | --help)
+    usage
+    ;;
   build)
-    [[ "$#" -eq 3 ]] || usage
+    [[ "$#" -eq 3 ]] || usage_error
     build "$2" "$3"
     sha256_of "$3"
     ;;
   release)
-    [[ "$#" -eq 2 ]] || usage
+    [[ "$#" -eq 2 ]] || usage_error
     release "$2"
     ;;
   install)
-    [[ "$#" -eq 1 ]] || usage
+    [[ "$#" -eq 1 ]] || usage_error
     install
     ;;
-  *) usage ;;
+  *) usage_error ;;
 esac
