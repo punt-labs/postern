@@ -1,0 +1,143 @@
+name: Handoff runtime
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/handoff-runtime.yml
+      - .punt-labs/ethos/checks/**
+      - scripts/postern-handoff-runtime
+      - tools/handoff-runtime/**
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Runtime release tag named in the profile, e.g. handoff-runtime-v1
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Validate runtime release request
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main || ! "$TAG" =~ ^handoff-runtime-v[1-9][0-9]*$ ]]; then
+            echo 'Dispatch on main with the handoff-runtime-vN tag the profile names.' >&2
+            exit 2
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.22.3"
+          package-manager-cache: false
+      - name: Rebuild every pinned bundle and check its digest
+        run: scripts/postern-handoff-runtime release runtime-assets
+      - name: Check the profile's release URLs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          python3 - "$TAG" <<'PY'
+          import json, sys
+          tag = sys.argv[1]
+          checks = json.load(open(".punt-labs/ethos/checks/snapshots/postern.yaml"))["checks"]
+          for name, check in checks.items():
+              for platform, pin in check["runtime"]["platforms"].items():
+                  want = f"https://github.com/punt-labs/postern/releases/download/{tag}/postern-handoff-{platform}.tar.gz"
+                  if pin["url"] != want:
+                      sys.exit(f"{name} {platform}: url {pin['url']} is not {want}")
+          PY
+      - name: Run the handoff gate offline from the Linux bundle
+        run: |
+          scratch=$(mktemp -d)
+          trap 'rm -rf "$scratch"' EXIT
+          mkdir "$scratch/runtime" "$scratch/home" "$scratch/tmp"
+          tar -xzf runtime-assets/postern-handoff-linux-amd64.tar.gz -C "$scratch/runtime"
+          for notice in node-LICENSE shellcheck-LICENSE.txt; do
+            test -s "$scratch/runtime/licenses/$notice"
+          done
+          mapfile -t shell < <(git ls-files 'scripts/*' '*.sh')
+          mapfile -t markdown < <(git ls-files '*.md' ':!:.claude/**' ':!:pharo/**')
+          offline=(sudo unshare --net --setuid "$(id -u)" --setgid "$(id -g)" --
+            env -i HOME="$scratch/home" TMPDIR="$scratch/tmp"
+            PATH="$scratch/runtime/bin:/usr/local/bin:/usr/bin:/bin")
+          "${offline[@]}" shellcheck "${shell[@]}"
+          "${offline[@]}" markdownlint-cli2 "${markdown[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime
+          path: runtime-assets/
+          compression-level: 0
+          if-no-files-found: error
+
+  smoke-darwin:
+    needs: build
+    permissions:
+      contents: read
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: runtime
+          path: runtime-assets
+      - name: Run the handoff gate offline from the macOS bundle
+        run: |
+          scratch=$(mktemp -d)
+          trap 'rm -rf "$scratch"' EXIT
+          mkdir "$scratch/runtime" "$scratch/home" "$scratch/tmp"
+          (cd runtime-assets && shasum -a 256 --check postern-handoff-darwin-arm64.tar.gz.sha256)
+          tar -xzf runtime-assets/postern-handoff-darwin-arm64.tar.gz -C "$scratch/runtime"
+          shell=()
+          while IFS= read -r f; do shell+=("$f"); done < <(git ls-files 'scripts/*' '*.sh')
+          markdown=()
+          while IFS= read -r f; do markdown+=("$f"); done < <(git ls-files '*.md' ':!:.claude/**' ':!:pharo/**')
+          offline=(sandbox-exec -p '(version 1) (allow default) (deny network*)'
+            env -i HOME="$scratch/home" TMPDIR="$scratch/tmp"
+            PATH="$scratch/runtime/bin:/usr/local/bin:/usr/bin:/bin")
+          "${offline[@]}" shellcheck "${shell[@]}"
+          "${offline[@]}" markdownlint-cli2 "${markdown[@]}"
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: [build, smoke-darwin]
+    concurrency: handoff-runtime-release
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: runtime
+          path: runtime-assets
+      - name: Publish the runtime assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          cd runtime-assets
+          sha256sum --check ./*.sha256
+          gh release create "$TAG" ./*.tar.gz ./*.sha256 --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --draft --prerelease --latest=false \
+            --title "Postern handoff runtime $TAG" --notes-file - <<'NOTES'
+          Offline toolchains for the Postern Ethos handoff gate, rebuilt
+          reproducibly by scripts/postern-handoff-runtime release.
+
+          Upstream sources: [Node.js](https://github.com/nodejs/node/tree/v24.22.3),
+          [ShellCheck](https://github.com/koalaman/shellcheck/tree/v0.11.0),
+          [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2/tree/v0.24.2).
+          NOTES
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false

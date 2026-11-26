@@ -45,6 +45,31 @@ Lint the Markdown files, as the Docs CI job does:
 npx markdownlint-cli2 "**/*.md" "#pharo" "#node_modules"
 ```
 
+### Ethos handoff snapshot
+
+Ethos runs the blocking handoff checks (ShellCheck and markdownlint-cli2 on
+the changed files) inside a verified snapshot described by
+`.punt-labs/ethos/checks/snapshots/postern.yaml`. The snapshot uses a pinned
+runtime bundle (Node.js, ShellCheck and the locked markdownlint-cli2 closure
+in `tools/handoff-runtime/`) instead of host tools. Install it once per
+machine:
+
+```bash
+make handoff-runtime
+```
+
+This downloads the published bundle for your platform, or rebuilds it from
+digest-pinned upstream archives, and installs it only if its SHA-256 matches
+the profile's pin. Until it is installed, Ethos defers the handoff checks
+with `runtime-missing` and asks you to run the gate yourself.
+
+The bundle is reproducible: `scripts/postern-handoff-runtime release OUT`
+rebuilds every pinned platform and fails if any digest moved. To change a
+pinned tool, update the script or lock file, rerun `release`, copy the new
+digests into the profile with a new `handoff-runtime-vN` URL and a new
+`epoch`, and after merge run the Handoff runtime workflow on `main` with
+that tag to publish the assets.
+
 ## Source Completeness
 
 The image is disposable; all code lives in `src/` in Tonel format.

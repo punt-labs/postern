@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# Build and install the pinned runtime bundle for Postern's Ethos handoff
+# snapshot profile (.punt-labs/ethos/checks/snapshots/postern.yaml).
+#
+#   postern-handoff-runtime build PLATFORM OUT  write the bundle for PLATFORM
+#   postern-handoff-runtime release OUT         build every pinned platform into
+#                                               OUT and check each against its pin
+#   postern-handoff-runtime install             install this host's bundle into
+#                                               Ethos's runtime store: download the
+#                                               published asset, or build it
+#
+# The bundle is rebuilt from digest-pinned upstream archives and the locked
+# markdownlint-cli2 closure, packed with fixed metadata, so the same inputs
+# give the same bytes; install refuses a build whose digest differs from the
+# profile's pin.
+
+set -euo pipefail
+
+NODE_VERSION=24.22.3
+SHELLCHECK_VERSION=0.11.0
+REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+PROFILE=$REPO_ROOT/.punt-labs/ethos/checks/snapshots/postern.yaml
+LOCK_DIR=$REPO_ROOT/tools/handoff-runtime
+
+die() {
+  printf 'postern-handoff-runtime: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  printf '%s\n' "usage: $0 build PLATFORM OUT | release OUT | install" >&2
+  exit 64
+}
+
+for tool in curl tar python3 npm; do
+  command -v "$tool" >/dev/null 2>&1 || die "$tool is required"
+done
+
+platform_assets() {
+  case "$1" in
+    linux-amd64)
+      NODE_DIST=node-v$NODE_VERSION-linux-x64
+      NODE_SHA256=4f2b175a6d53a5c617a80dba2676238a0688cef28c6da4eba35c7d844e66fcfb
+      SHELLCHECK_DIST=shellcheck-v$SHELLCHECK_VERSION.linux.x86_64
+      SHELLCHECK_SHA256=8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+      ;;
+    darwin-arm64)
+      NODE_DIST=node-v$NODE_VERSION-darwin-arm64
+      NODE_SHA256=1d64136c8a43d648d1b3bad10797a4c995b1ca032d2bde8799de43b37f058fe5
+      SHELLCHECK_DIST=shellcheck-v$SHELLCHECK_VERSION.darwin.aarch64
+      SHELLCHECK_SHA256=56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79
+      ;;
+    *) die "no pinned runtime for platform $1" ;;
+  esac
+}
+
+sha256_of() {
+  python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$1"
+}
+
+fetch() {
+  local url=$1 sha=$2 out=$3
+  curl -fsSL --retry 3 "$url" -o "$out"
+  [[ "$(sha256_of "$out")" == "$sha" ]] || die "digest mismatch for $url"
+}
+
+pack() {
+  python3 - "$1" "$2" <<'PY'
+import gzip, os, stat, sys, tarfile
+
+src, out = sys.argv[1], sys.argv[2]
+
+def entry(path, rel):
+    st = os.lstat(path)
+    if stat.S_ISLNK(st.st_mode):
+        sys.exit(f"refusing symlink in runtime bundle: {rel}")
+    info = tarfile.TarInfo(rel)
+    info.uid = info.gid = 0
+    info.uname = info.gname = ""
+    info.mtime = 0
+    if stat.S_ISDIR(st.st_mode):
+        info.type, info.mode = tarfile.DIRTYPE, 0o755
+    else:
+        info.size = st.st_size
+        info.mode = 0o755 if st.st_mode & 0o111 else 0o644
+    return info
+
+with open(out, "wb") as raw:
+    with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0, compresslevel=9) as gz:
+        with tarfile.open(fileobj=gz, mode="w", format=tarfile.PAX_FORMAT) as tar:
+            for root, dirs, files in os.walk(src):
+                dirs.sort()
+                for name in dirs + sorted(files):
+                    path = os.path.join(root, name)
+                    rel = os.path.relpath(path, src)
+                    info = entry(path, rel)
+                    if info.isdir():
+                        tar.addfile(info)
+                    else:
+                        with open(path, "rb") as fh:
+                            tar.addfile(info, fh)
+PY
+}
+
+build() {
+  local platform=$1 out=$2 work stage
+  platform_assets "$platform"
+  work=$(mktemp -d)
+  # shellcheck disable=SC2064  # expand $work now; it is local to build
+  trap "rm -rf '$work'" EXIT
+  stage=$work/runtime
+  mkdir -p "$stage/bin" "$stage/lib" "$stage/licenses"
+
+  fetch "https://nodejs.org/dist/v$NODE_VERSION/$NODE_DIST.tar.xz" "$NODE_SHA256" "$work/node.tar.xz"
+  tar -xJf "$work/node.tar.xz" -C "$work"
+  cp "$work/$NODE_DIST/bin/node" "$stage/bin/node"
+  cp "$work/$NODE_DIST/LICENSE" "$stage/licenses/node-LICENSE"
+
+  fetch "https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/$SHELLCHECK_DIST.tar.xz" \
+    "$SHELLCHECK_SHA256" "$work/shellcheck.tar.xz"
+  tar -xJf "$work/shellcheck.tar.xz" -C "$work"
+  cp "$work/shellcheck-v$SHELLCHECK_VERSION/shellcheck" "$stage/bin/shellcheck"
+  cp "$work/shellcheck-v$SHELLCHECK_VERSION/LICENSE.txt" "$stage/licenses/shellcheck-LICENSE.txt"
+
+  cp "$LOCK_DIR/package.json" "$LOCK_DIR/package-lock.json" "$stage/lib/"
+  (cd "$stage/lib" && npm ci --ignore-scripts --no-bin-links --no-audit --no-fund \
+    --cache "$work/npm-cache" --loglevel=error >/dev/null)
+  rm -f "$stage/lib/node_modules/.package-lock.json"
+  cat >"$stage/bin/markdownlint-cli2" <<'SH'
+#!/bin/sh
+exec "${0%/*}/node" "${0%/*}/../lib/node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs" "$@"
+SH
+  chmod 755 "$stage/bin/"*
+
+  pack "$stage" "$out"
+  rm -rf "$work"
+  trap - EXIT
+}
+
+host_platform() {
+  local os arch
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  case "$(uname -m)" in
+    x86_64 | amd64) arch=amd64 ;;
+    arm64 | aarch64) arch=arm64 ;;
+    *) arch=$(uname -m) ;;
+  esac
+  printf '%s-%s\n' "$os" "$arch"
+}
+
+# pin PLATFORM FIELD prints the profile's sha256 or url for PLATFORM; every
+# check in the profile must agree on it.
+pin() {
+  python3 - "$PROFILE" "$1" "$2" <<'PY'
+import json, sys
+profile, platform, field = sys.argv[1:]
+checks = json.load(open(profile))["checks"]
+pins = {c["runtime"]["platforms"].get(platform, {}).get(field) for c in checks.values()}
+if len(pins) != 1 or None in pins:
+    sys.exit(f"profile has no single {platform} runtime {field}")
+print(pins.pop())
+PY
+}
+
+pinned_platforms() {
+  python3 - "$PROFILE" <<'PY'
+import json, sys
+checks = json.load(open(sys.argv[1]))["checks"]
+print("\n".join(sorted({p for c in checks.values() for p in c["runtime"]["platforms"]})))
+PY
+}
+
+release() {
+  local out=$1 platform sha got asset
+  mkdir -p "$out"
+  for platform in $(pinned_platforms); do
+    sha=$(pin "$platform" sha256)
+    asset=$(basename "$(pin "$platform" url)")
+    build "$platform" "$out/$asset"
+    got=$(sha256_of "$out/$asset")
+    [[ "$got" == "$sha" ]] || die "built $platform runtime $got does not match the profile pin $sha"
+    printf '%s  %s\n' "$sha" "$asset" >"$out/$asset.sha256"
+    printf '%s  %s\n' "$sha" "$asset"
+  done
+}
+
+install() {
+  local platform sha url store dest tmp
+  platform=$(host_platform)
+  sha=$(pin "$platform" sha256)
+  url=$(pin "$platform" url)
+  store=${HOME:?}/.punt-labs/ethos/runtimes
+  dest=$store/$sha.tar.gz
+  if [[ -f "$dest" && "$(sha256_of "$dest")" == "$sha" ]]; then
+    printf 'runtime %s already installed: %s\n' "$platform" "$dest"
+    return
+  fi
+  mkdir -p "$store"
+  tmp=$(mktemp "$store/.postern-runtime.XXXXXX")
+  if ! curl -fsSL --retry 3 "$url" -o "$tmp" || [[ "$(sha256_of "$tmp")" != "$sha" ]]; then
+    printf 'published %s runtime unavailable or mismatched; building it\n' "$platform" >&2
+    build "$platform" "$tmp"
+  fi
+  local got
+  got=$(sha256_of "$tmp")
+  if [[ "$got" != "$sha" ]]; then
+    rm -f "$tmp"
+    die "built $platform runtime $got does not match the profile pin $sha"
+  fi
+  mv "$tmp" "$dest"
+  printf 'installed %s runtime: %s\n' "$platform" "$dest"
+}
+
+case "${1:-}" in
+  build)
+    [[ "$#" -eq 3 ]] || usage
+    build "$2" "$3"
+    sha256_of "$3"
+    ;;
+  release)
+    [[ "$#" -eq 2 ]] || usage
+    release "$2"
+    ;;
+  install)
+    [[ "$#" -eq 1 ]] || usage
+    install
+    ;;
+  *) usage ;;
+esac

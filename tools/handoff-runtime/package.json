@@ -1,0 +1,9 @@
+{
+  "name": "postern-handoff-runtime",
+  "private": true,
+  "description": "Pinned Markdown lint closure for the Ethos handoff snapshot runtime.",
+  "license": "MIT",
+  "dependencies": {
+    "markdownlint-cli2": "0.24.2"
+  }
+}
