@@ -61,7 +61,8 @@ make handoff-runtime
 This downloads the published bundle for your platform, or rebuilds it from
 digest-pinned upstream archives, and installs it only if its SHA-256 matches
 the profile's pin. Until it is installed, Ethos defers the handoff checks
-with `runtime-missing` and asks you to run the gate yourself.
+with `runtime-missing` and asks you to run the gate yourself. The pinned Node.js needs macOS 13.5 or
+later, and `install` refuses an older Mac.
 
 The bundle is reproducible: `scripts/postern-handoff-runtime release OUT`
 rebuilds every pinned platform and fails if any digest moved. To change a

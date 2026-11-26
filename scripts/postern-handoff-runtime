@@ -151,6 +151,17 @@ SH
   trap - EXIT
 }
 
+# Node.js 24 needs macOS 13.5 or later on both architectures.
+require_supported_macos() {
+  local version major minor
+  [[ "$(uname -s)" == Darwin ]] || return 0
+  version=$(sw_vers -productVersion)
+  IFS=. read -r major minor _ <<<"$version"
+  if ((major < 13 || (major == 13 && ${minor:-0} < 5))); then
+    die "macOS $version is unsupported: the pinned Node.js $NODE_VERSION needs macOS 13.5 or later"
+  fi
+}
+
 host_platform() {
   local os arch
   os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -205,6 +216,7 @@ install() {
   local platform sha url store dest tmp
   require curl python3
   platform=$(host_platform)
+  require_supported_macos
   sha=$(pin "$platform" sha256)
   url=$(pin "$platform" url)
   store=${HOME:?}/.punt-labs/ethos/runtimes
