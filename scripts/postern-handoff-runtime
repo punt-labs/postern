@@ -180,9 +180,11 @@ PY
 }
 
 release() {
-  local out=$1 platform sha got asset
+  local out=$1 platforms platform sha got asset
+  platforms=$(pinned_platforms)
+  [[ -n "$platforms" ]] || die "profile pins no runtime platforms"
   mkdir -p "$out"
-  for platform in $(pinned_platforms); do
+  for platform in $platforms; do
     sha=$(pin "$platform" sha256)
     asset=$(basename "$(pin "$platform" url)")
     build "$platform" "$out/$asset"
