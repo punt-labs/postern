@@ -171,41 +171,14 @@ If `make check` fails, fix the underlying issue. The "no pre-existing
 excuse" rule applies here as everywhere — if you see something broken,
 fix it.
 
-## Ethos & Delegation
-
-Identity: `agent: claude` per `.punt-labs/ethos.yaml`. Sub-agent calls
-(e.g. `Agent(subagent_type="kwb")`) match ethos identity handles.
+## Live Image Workflow
 
 Postern is a Pharo Smalltalk live-image runtime exposed over HTTP.
 Every change happens against a running image — there is no
 edit-compile-restart loop, only `compile`, `evaluate`, and `commit`.
-Worker pairs are Smalltalk specialists; evaluators bring Pike-style
-discipline (lint gate, scoped tests, deadlock recovery). Within each
-row, the worker and evaluator must be distinct handles. Claude is the
-leader, never the evaluator.
-
-| Task type | Worker | Evaluator |
-|-----------|--------|-----------|
-| Smalltalk class / method authoring | `kwb` (Beck) | `rej` (Johnson) |
-| Refactoring (rename, extract, move) | `rej` | `kwb` |
-| Test authoring (SUnit, scoped runs) | `kwb` | `rej` |
-| HTTP endpoint / Zinc / `/help` content | `rej` | `mdm` (McIlroy) |
-| Iceberg / git-from-image workflow | `kwb` | `adb` (Lovelace) |
-| REPL token / auth / safety boundary | `djb` (Bernstein) | `kwb` |
-| Image bootstrap / Makefile / headless start | `adb` | `mdm` |
-| Lint / dispatch / live-docs protocol | `mdm` | `rej` |
-| Cross-image deadlock or recovery investigation | `kwb` | `djb` |
-| Cross-repo coordination with claude-agent-sdk-smalltalk | `claude` (leader) | `mcg` (Cagan) |
-
-The Smalltalk pair (`kwb` / `rej`) is the working core. Engage `rej`
-for class-hierarchy design, refactoring decisions, and framework
-extraction; engage `kwb` for tight TDD cycles, lint discipline, and
-live-image work. Use the `quick` pipeline for single-method or
-single-test changes inside an existing class. Use `standard` for new
-classes, protocol changes, or anything that touches the HTTP surface.
 
 **Always read the relevant `/help/<section>` from the live image
-before delegating** — the live docs reflect the loaded packages, not
+before changing code** — the live docs reflect the loaded packages, not
 static files.
 
 ## Naming Conventions
