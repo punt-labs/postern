@@ -70,8 +70,8 @@ jobs:
           offline=(sudo unshare --net --setuid "$(id -u)" --setgid "$(id -g)" --
             env -i HOME="$scratch/home" TMPDIR="$scratch/tmp"
             PATH="$scratch/runtime/bin:/usr/local/bin:/usr/bin:/bin")
-          "${offline[@]}" shellcheck "${shell[@]}"
-          "${offline[@]}" markdownlint-cli2 "${markdown[@]}"
+          "${offline[@]}" "$scratch/runtime/bin/shellcheck" "${shell[@]}"
+          "${offline[@]}" "$scratch/runtime/bin/markdownlint-cli2" "${markdown[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtime
@@ -107,8 +107,8 @@ jobs:
           offline=(sandbox-exec -p '(version 1) (allow default) (deny network*)'
             env -i HOME="$scratch/home" TMPDIR="$scratch/tmp"
             PATH="$scratch/runtime/bin:/usr/local/bin:/usr/bin:/bin")
-          "${offline[@]}" shellcheck "${shell[@]}"
-          "${offline[@]}" markdownlint-cli2 "${markdown[@]}"
+          "${offline[@]}" "$scratch/runtime/bin/shellcheck" "${shell[@]}"
+          "${offline[@]}" "$scratch/runtime/bin/markdownlint-cli2" "${markdown[@]}"
 
   publish:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
