@@ -1,6 +1,6 @@
 # Postern — Agent Bootstrap
 
-> **Scope of this file.** AGENTS.md is the runtime bootstrap for **agents *using* Postern** — the HTTP server, the `/help` endpoints, the `/repl` evaluation flow. If you are an agent **developing Postern itself** (writing Smalltalk classes, refactoring, shipping releases), read [CLAUDE.md](CLAUDE.md) instead — it covers architecture, conventions, and the contributor delegation model.
+> **Scope of this file.** AGENTS.md is the runtime bootstrap for **agents *using* Postern** — the HTTP server, the `/help` endpoints, the `/repl` evaluation flow. If you are an agent **developing Postern itself** (writing Smalltalk classes, refactoring, shipping releases), read [CLAUDE.md](CLAUDE.md) instead — it covers architecture, conventions, and the live-image workflow.
 
 A live Smalltalk runtime is available at `http://localhost:8422`. You can compile
 code, run tests, inspect objects, and commit — all over HTTP, without touching the IDE.
