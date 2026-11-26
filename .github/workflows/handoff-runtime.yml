@@ -65,7 +65,8 @@ jobs:
             grep -q "macOS $version is unsupported" <<<"$out"
           done
           for version in 13.5 15.1; do
-            env MACOS_VERSION="$version" HOME="$stub/home" PATH="$stub:$PATH" scripts/postern-handoff-runtime install | grep -q 'darwin-amd64 already installed'
+            out=$(env MACOS_VERSION="$version" HOME="$stub/home" PATH="$stub:$PATH" scripts/postern-handoff-runtime install)
+            grep -q 'darwin-amd64 already installed' <<<"$out"
           done
       - name: Check the profile's release URLs
         if: github.event_name == 'workflow_dispatch'
