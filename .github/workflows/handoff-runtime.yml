@@ -41,6 +41,32 @@ jobs:
           package-manager-cache: false
       - name: Rebuild every pinned bundle and check its digest
         run: scripts/postern-handoff-runtime release runtime-assets
+      - name: Check install's macOS 13.5 cutoff
+        run: |
+          stub=$(mktemp -d)
+          trap 'rm -rf "$stub"' EXIT
+          cat >"$stub/uname" <<'SH'
+          #!/bin/sh
+          case "$1" in -s) echo Darwin ;; *) echo x86_64 ;; esac
+          SH
+          cat >"$stub/sw_vers" <<'SH'
+          #!/bin/sh
+          echo "$MACOS_VERSION"
+          SH
+          chmod +x "$stub/uname" "$stub/sw_vers"
+          sha=$(cut -d' ' -f1 runtime-assets/postern-handoff-darwin-amd64.tar.gz.sha256)
+          mkdir -p "$stub/home/.punt-labs/ethos/runtimes"
+          cp runtime-assets/postern-handoff-darwin-amd64.tar.gz "$stub/home/.punt-labs/ethos/runtimes/$sha.tar.gz"
+          for version in 12.7.6 13.4; do
+            if out=$(env MACOS_VERSION="$version" HOME="$stub/home" PATH="$stub:$PATH" scripts/postern-handoff-runtime install 2>&1); then
+              echo "install accepted macOS $version" >&2
+              exit 1
+            fi
+            grep -q "macOS $version is unsupported" <<<"$out"
+          done
+          for version in 13.5 15.1; do
+            env MACOS_VERSION="$version" HOME="$stub/home" PATH="$stub:$PATH" scripts/postern-handoff-runtime install | grep -q 'darwin-amd64 already installed'
+          done
       - name: Check the profile's release URLs
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -107,7 +133,7 @@ jobs:
           scratch=$(mktemp -d)
           trap 'rm -rf "$scratch"' EXIT
           mkdir "$scratch/runtime" "$scratch/home" "$scratch/tmp"
-          (cd runtime-assets && shasum -a 256 --check postern-handoff-$PLATFORM.tar.gz.sha256)
+          (cd runtime-assets && shasum -a 256 --check "postern-handoff-$PLATFORM.tar.gz.sha256")
           tar -xzf "runtime-assets/postern-handoff-$PLATFORM.tar.gz" -C "$scratch/runtime"
           shell=()
           while IFS= read -r f; do shell+=("$f"); done < <(git ls-files 'scripts/*' '*.sh')
